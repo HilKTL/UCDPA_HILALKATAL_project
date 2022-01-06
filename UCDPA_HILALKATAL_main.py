@@ -128,17 +128,18 @@ merged_data.info()
 merged_data.isna().sum()
 """Missing value visualization for detecting if the missing values have any relationhip between different variables to detect 
 missingness type(MCAR,MNAR,MAR)"""
-""""%matplotlib inline"""
 """Visualize missingness"""
 msno.matrix(merged_data)
 plt.show()
 """calculating percentage of missing values"""
-def missing_values_percentage(df):
-    return (df.isna().sum())/len(df.values)*100
+def missing_values_percentage(df) :
+    percentage = (df.isna().sum())/len(df.values)*100
+    return percentage
 missing_values_percentage(merged_data)
-"""IMPUTATING GROSS COLUMN"""
-"""for datatype manipulation ,nan values were imputed with zero before,now these 0 values will be 
-imputed after having descriptive statistical values of the gross column"""
+"""
+IMPUTATING GROSS COLUMN
+for datatype manipulation ,nan values were imputed with zero before,now these 0 values will be imputed after having descriptive statistical values of the gross column
+"""
 merged_data['Gross'].describe()
 sns.histplot(merged_data['Gross'])
 plt.xlabel('Gross', fontsize=10)
@@ -162,7 +163,7 @@ merged_data['Certificate'].value_counts()
 mapping = {'Passed': np.nan}
 merged_data['Certificate'] = merged_data['Certificate'].replace(mapping)
 merged_data.head(1)
-# Defining a function for certificate values imputation
+"""Defining a function for certificate values imputation"""
 mask2 = merged_data['Certificate'].isnull()
 def certificate_imp(reg):
     """Finding mode value of certificate according to genres group"""
@@ -238,6 +239,7 @@ print(mean_metascore_by_imdb)
 plt.plot(mean_metascore_by_imdb, 'o', alpha=0.5)
 plt.xlabel('IMDB_Rating')
 plt.ylabel('Meta_score')
+plt.title('Metascore vs imdb scores before imputation')
 plt.show()
 """extracting data in which metascores isnot null"""
 data = merged_data[~merged_data['Meta_score'].isnull()]
@@ -252,7 +254,7 @@ print(results)
 """Plotting best fit line on the data points of metascores and imdb scores"""
 """Scatterplot"""
 plt.plot(xi, yi, 'o', alpha=0.1)
-#plot the best fit line
+"""plot the best fit line"""
 """creating numpy array including min to max values of imdb scores"""
 x = np.array([xi.min(), xi.max()])
 """creating linear equation according to linear regression slope and intercept values"""
@@ -261,6 +263,33 @@ y = results.intercept+results.slope*x
 plt.plot(x, y, '-', alpha=0.7)
 plt.xlabel('imdb scores')
 plt.ylabel('Metascores')
+plt.title(''Linear equation between metascore and imdb scores'')
 plt.show()
+"""IMPUTATION ACCORDING TO LINEAR REGRESSION RESULTS"""
+"""getting index number of null metascores rows"""
+metascore_null = merged_data[merged_data['Meta_score'].isnull()]
+metascore_index_lst = metascore_null.index
+"""extracting null values of metascores"""
+meta_scores_null = merged_data.loc[metascore_index_lst]['Meta_score']
+"""extracting null values of imdb scores"""
+IMDB_Rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
+"""extracting null data"""
+data_null = merged_data.loc[metascore_index_lst]
+"""calculating metascores values according to intercept ang coefficient value of imdb scores"""
+meta_scores_null = round((-14.871812557167843) + (11.707244939463374)*IMDB_Rating_null)
+merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
+merged_data.loc[metascore_index_lst].head()
+merged_data.info()
+"""AFTER IMPUTATION"""
+grouped = merged_data.groupby('IMDB_Rating')
+mean_metascore_by_imdb = grouped['Meta_score'].mean()
+print(mean_metascore_by_imdb)
+plt.plot(mean_metascore_by_imdb,'o',alpha = 0.5)
+plt.xlabel('IMDB_Rating')
+plt.ylabel('Meta_score')
+plt.title('Metascore vs imdb scores after imputation')
+plt.show()
+
+
 
 
