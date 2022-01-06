@@ -1,17 +1,8 @@
 """Importing necessary dictionaries"""
-import pandas as pd
-pd.options.mode.chained_assignment = None  # default='warn'
-pd.set_option('display.max_rows', 8000)
-pd.set_option('display.max_columns', 20)
-pd.set_option('display.width', 8000)
 from wordcloud import WordCloud
 import datetime as dt
 from functools import reduce
-import missingno as msno
 import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
-import re
 from scipy.stats import linregress
 from sklearn.model_selection import RepeatedStratifiedKFold
 import statsmodels.formula.api as smf
@@ -32,6 +23,7 @@ from sklearn.metrics import accuracy_score
 """DATA EXTRACTION - WEB SCRAPING"""
 
 """1 - Imdb movies dataset"""
+"""Sending http request with request module"""
 import requests
 file = requests.get("https://www.kaggle.com/harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows/download")
 df = file.text
@@ -50,7 +42,8 @@ write the contents of the heart_dis variable to the file, then close the file by
 oscar_df = open("oscar.csv", "w")
 oscar_df.write(df)
 oscar_df.close()
-"""Import csv files into a Pandas DataFrame"""
+""" Read csv files into dataframe with pandas"""
+import pandas as pd
 dfa = pd.read_csv('C:\\Users\\serta\\Desktop\\IMDB_kaggle\\imdb_top_1000.csv')
 dfa.head()
 oscar_df = pd.read_csv("C:\\Users\\serta\\Desktop\\my_data\\the_oscar_award.csv")
@@ -78,7 +71,7 @@ merged_data.info()
 """filling missing win values with false because they are not awarded"""
 merged_data['win'].fillna('False', inplace=True)
 merged_data.head(1)
-"""getting information of duplicated rows"""
+"""getting insight of duplicated rows"""
 merged_data[merged_data.duplicated()].head()
 """dropping duplicates"""
 merged_data.drop_duplicates(inplace=True)
@@ -88,7 +81,7 @@ merged_data[merged_data['Ceremony Year'].isnull()].head(10)
 """filling nan with 1900 ,it is a random year which I pick because there was no Oscar awards in that years"""
 merged_data['Ceremony Year'].fillna(1900, inplace=True)
 merged_data.info()
-"""Replacing 'minutes' and changing datatype from object to integer"""
+"""Replacing 'minutes' and changing datatype from object to float"""
 merged_data['Runtime'] = [int(str(i).replace("min", "")) for i in merged_data['Runtime']]
 """filling nan values with 0 to be able to change the datatype from object to integer"""
 merged_data['Gross'] = merged_data['Gross'].fillna(0)
@@ -102,7 +95,7 @@ merged_data['win'] = [1 if x == True else 0 for x in merged_data['win']]
 merged_data.info()
 """looking for unique values for detecting anormal values"""
 merged_data['Released_Year'].unique()
-"""finding out the series title of released year with a value of 'PG'"""
+"""finding out the series title of released year with the value of 'PG'"""
 print(merged_data[merged_data['Released_Year'] == 'PG'])
 """replacing 'PG' with correct year value after finding out the correct value of released year via internet"""
 merged_data['Released_Year'] = merged_data['Released_Year'].str.replace('PG', '1995')
@@ -118,52 +111,56 @@ merged_data.info()
 """extracting duplicated movies on series title"""
 duplicated_titles = merged_data[merged_data.duplicated(subset='Series_Title')]
 print(duplicated_titles.iloc[:, [1, 15, 16]])
-print(duplicated_titles[duplicated_titles['Ceremony Year'] < duplicated_titles['Year_of_release']])
+"""calling duplicated movies from imdb movies dataset"""
+dfa[dfa['Series_Title'].isin(['Titanic','Little Women','A Star Is Born','Drishyam','King Kong','Up'])]
+"""calling duplicated movies with wrong ceremony year"""
+duplicated_titles[duplicated_titles['Ceremony Year'] < duplicated_titles['Year_of_release']]
 """ceremony year of awarded movie cannot be smaller than year of release so 36 and 686 will be removed."""
 print(merged_data[merged_data['Series_Title'].isin(['Titanic', 'Little Women', 'A Star Is Born', 'Drishyam', 'King Kong', 'Up'])].iloc[:, [1, 15, 16, 17]])
-"""will drop index ceremony year is smaller than released year and duplicated Drishyam"""
-merged_data.drop(index=[35, 36, 336, 685, 686, 1336, 1387], inplace=True)
+"""duplicated rows and films that are not in imdb movies will be drop from merged data(Oscar+imdb movies data)"""
+merged_data.drop(index = [35,36,599,685,686,1336,1387],inplace = True)
 merged_data.info()
 """MISSING VALUES IMPUTATION"""
 merged_data.isna().sum()
-"""Missing value visualization for detecting if the missing values have any relationhip between different variables to detect 
-missingness type(MCAR,MNAR,MAR)"""
+"""Missing value visualization for detecting if the missing values have any relationhip between variables to detect missingness is not random or not"""
 """Visualize missingness"""
+import numpy as np
+import missingno as msno
 msno.matrix(merged_data)
 plt.show()
 """calculating percentage of missing values"""
 def missing_values_percentage(df) :
     percentage = (df.isna().sum())/len(df.values)*100
     return percentage
-missing_values_percentage(merged_data)
+print(missing_values_percentage(merged_data))
 """
 IMPUTATING GROSS COLUMN
 for datatype manipulation ,nan values were imputed with zero before,now these 0 values will be imputed after having descriptive statistical values of the gross column
 """
 merged_data['Gross'].describe()
+import seaborn as sns
+"""plotting Gross values before imputation"""
 sns.histplot(merged_data['Gross'])
 plt.xlabel('Gross', fontsize=10)
+plt.title('Distribution of Gross before imputation')
 plt.show()
 merged_data['Gross'].describe()
 len(merged_data[merged_data['Gross'] == 0])
-merged_data['Gross'].median()
 """because the number of 0 values are nearly %17 of the values instead of mean median values will be used for imputation"""
 merged_data['Gross'] = [merged_data['Gross'].median() if x == 0 else x for x in merged_data['Gross']]
 merged_data['Gross'].describe()
-merged_data['Gross'].median()
+"""plotting Gross values after imputation"""
 sns.histplot(merged_data['Gross'])
 plt.xlabel('Gross', fontsize=10)
+plt.title('Distribution of Gross after imputation')
 plt.show()
 merged_data['Gross'].nsmallest()
 merged_data['Gross'].nlargest()
 merged_data['Gross'].isnull().sum()
 """IMPUTATING CERTIFICATE COLUMN ACCORDING TO GENRES COLUMN"""
 merged_data['Certificate'].value_counts()
-"""replacing passed values with nan"""
-mapping = {'Passed': np.nan}
-merged_data['Certificate'] = merged_data['Certificate'].replace(mapping)
-merged_data.head(1)
 """Defining a function for certificate values imputation"""
+import re
 mask2 = merged_data['Certificate'].isnull()
 def certificate_imp(reg):
     """Finding mode value of certificate according to genres group"""
@@ -175,50 +172,103 @@ def certificate_imp(reg):
     return result
 merged_data[merged_data['Certificate'].isnull()]['Genre'].value_counts()
 mask1 = merged_data['Genre'].str.contains(r"^Drama(?!,)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"^Drama(?!,)")
-#negative loohahead assertion
-mask1 = merged_data['Genre'].str.contains(r"(^Comedy, Drama)(?!,)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(^Drama, War)(?!,)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(^Drama, War)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, Romance)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Comedy, Drama, Romance)")
-mask1 = merged_data['Genre'].str.contains(r"(Action, Crime, Drama)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Action, Crime, Drama)")
-mask1 = merged_data['Genre'].str.contains(r"(Horror|Thriller)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Horror|Thriller)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Romance)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama, Romance)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama|War)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Crime, Drama|War)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Romance|Family)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Comedy, Romance|Family)")
-mask1 = merged_data['Genre'].str.contains(r"(Adventure, Drama, Western)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Adventure, Drama, Western)")
-mask1 = merged_data['Genre'].str.contains(r"(Biography, Drama, History)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Biography, Drama, History)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Film-Noir)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama, Film-Noir)")
-mask1 = merged_data['Genre'].str.contains(r"(Film-Noir, Mystery)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Film-Noir, Mystery)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Music, Romance)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama, Music, Romance)")
-mask1 = merged_data['Genre'].str.contains(r"(Action|Adventure|Comedy)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Action|Adventure|Comedy)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Sci-Fi)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama, Sci-Fi)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Western)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama, Western)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama|Fantasy)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama|Fantasy)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, History)")
-merged_data.loc[mask1&mask2, 'Certificate'] = certificate_imp(r"(Drama, History)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"^Drama(?!,)")
+# negative loohahead assertion
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, War)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, War)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, Romance)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama, Romance)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Action, Crime, Drama)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Action, Crime, Drama)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama|Thriller)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama|Thriller)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Romance)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Romance)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Romance)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Romance)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Mystery, Thriller)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Mystery, Thriller)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Film-Noir)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama, Film-Noir)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Mystery)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama, Mystery)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Biography, Drama, History)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Biography, Drama, History)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Adventure, Drama, Western)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Adventure, Drama, Western(?!,))")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, War)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama, War)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Music, Romance)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Music, Romance)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Action, Adventure, Drama)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Action, Adventure, Drama)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Film-Noir)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Film-Noir)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, History)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, History)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Horror)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Horror)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Romance)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama, Romance)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, Family)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama, Family)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Horror, Sci-Fi)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Horror, Sci-Fi)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Horror)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Horror)")
+mask1 = merged_data['Genre'].str.contains(r"(Adventure, Comedy)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Adventure, Comedy)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Animation, Adventure, Family)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Animation, Adventure, Family)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Music, Musical)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Comedy, Music, Musical)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Sci-Fi)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Sci-Fi)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Fantasy, Mystery)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Sci-Fi)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Western)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Western)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, Crime)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Crime)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Family)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Family)")
+mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Fantasy)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Crime, Drama, Fantasy)")
+mask1 = merged_data['Genre'].str.contains(r"(Comedy, War)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Comedy, War)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Fantasy)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Fantasy)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Romance, War)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Romance, War)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Action, Drama, Mystery)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Action, Drama, Mystery)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Action, Adventure, War)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Action, Adventure, War)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Drama, Film-Noir, Mystery)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Film-Noir, Mystery)(?!,)")
+mask1 = merged_data['Genre'].str.contains(r"(Film-Noir, Mystery)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Film-Noir, Mystery)(?!,)")
+"""These rows throw 'out of range' error while imputing with certificate_imp function, so I will call them"""
 merged_data[merged_data['Certificate'].isnull()]['Genre'].value_counts()
+merged_data[merged_data['Genre'].isin(['Action, Adventure, Biography','Action, Adventure, Crime','Comedy, Musical, War','Action, Crime, Comedy','Film-Noir, Mystery'])]
+"""Since there are no genres similar to these ones in our data, these nan 
+certificate columns will be imputed with approppriate value after searching on 'https://www.imdb.com/' """
+"""Imputing  movies' certificate"""
+merged_data.loc[[49,246],'Certificate'] = 'A'
+merged_data.loc[341,'Certificate'] = 'U'
+merged_data.loc[607,'Certificate'] = 'TV-14'
+merged_data.loc[1232,'Certificate'] = 'PG'
+merged_data.loc[[49,246,341,607,1232]]
 merged_data['Certificate'].isnull().sum()
 merged_data.info()
 merged_data['Certificate'].value_counts()
 """Creating certificate groups by mapping"""
-mapping = {'G': 'All_ages_group', 'U': 'All_ages_group', 'PG': 'All ages(kids with PG)', 'TV-PG': 'Kids(PG)', 'UA': 'All ages(kids with PG)','U/A': 'All ages(kids with PG)', 'GP': 'All ages(kids with PG)', 'PG-13': 'Teens', 'TV-14': 'Teens', '16': 'Teens', 'R': 'Adult', 'TV-MA': 'Adult', 'A': 'Adult'}
+mapping = {'G': 'All_ages_group','U' : 'All_ages_group' , 'PG':'All ages(kids with PG)','TV-PG':'All ages(kids with PG)','UA':'All ages(kids with PG)','U/A':'All ages(kids with PG)','GP':'All ages(kids with PG)','Passed' : 'All ages(kids with PG)','PG-13' : 'Teens', 'TV-14': 'Teens','16' : 'Teens','R' : 'Adult' ,'TV-MA' : 'Adult','A' : 'Adult'}
+merged_data['Certificate']= merged_data['Certificate'].replace(mapping)
 merged_data['Certificate']=merged_data['Certificate'].replace(mapping)
 merged_data['Certificate'].value_counts()
 """IMPUTATION OF METASCORE COLUMN"""
@@ -229,13 +279,13 @@ columns = ['IMDB_Rating', 'Meta_score', 'No_of_Votes', 'Gross']
 subset = merged_data[columns]
 subset.corr()
 """according to results,although it is a small correlation ,only imdb scores have correlation with metascores,so imputation will be made according to imdb score column."""
-"""BEFORE IMPUTATION"""
+"""VISUALIZATION BEFORE IMPUTATION"""
 """Group by imdb scores"""
 grouped = merged_data.groupby('IMDB_Rating')
 """Getting mean values of metascores"""
 mean_metascore_by_imdb = grouped['Meta_score'].mean()
 print(mean_metascore_by_imdb)
-"""scatter plot of mean values of metascore vs imdb scores"""
+"""plotting mean values of metascore vs imdb scores"""
 plt.plot(mean_metascore_by_imdb, 'o', alpha=0.5)
 plt.xlabel('IMDB_Rating')
 plt.ylabel('Meta_score')
@@ -243,14 +293,14 @@ plt.title('Metascore vs imdb scores before imputation')
 plt.show()
 """extracting data in which metascores isnot null"""
 data = merged_data[~merged_data['Meta_score'].isnull()]
-"""getting linear regression statistical values between metascore and imdb scores"""
+"""getting linear regression equation between metascore and imdb scores"""
 from scipy.stats import linregress
 xi = data['IMDB_Rating']
 yi = data['Meta_score']
 """Compute the linear regression"""
 results = linregress(xi, yi)
 print(results)
-"""according to results it means that metascores increases 11.70 points per 1 point of imdb scores"""
+"""according to results it means that metascores increases 11.71 points per 1 point of imdb scores"""
 """Plotting best fit line on the data points of metascores and imdb scores"""
 """Scatterplot"""
 plt.plot(xi, yi, 'o', alpha=0.1)
@@ -259,15 +309,16 @@ plt.plot(xi, yi, 'o', alpha=0.1)
 x = np.array([xi.min(), xi.max()])
 """creating linear equation according to linear regression slope and intercept values"""
 y = results.intercept+results.slope*x
-"""plotting straight line"""
+"""plotting best fit line"""
 plt.plot(x, y, '-', alpha=0.7)
 plt.xlabel('imdb scores')
 plt.ylabel('Metascores')
-plt.title(''Linear equation between metascore and imdb scores'')
+plt.title('Linear equation between metascore and imdb scores')
 plt.show()
 """IMPUTATION ACCORDING TO LINEAR REGRESSION RESULTS"""
 """getting index number of null metascores rows"""
 metascore_null = merged_data[merged_data['Meta_score'].isnull()]
+"""creating list of index numbers"""
 metascore_index_lst = metascore_null.index
 """extracting null values of metascores"""
 meta_scores_null = merged_data.loc[metascore_index_lst]['Meta_score']
@@ -275,12 +326,13 @@ meta_scores_null = merged_data.loc[metascore_index_lst]['Meta_score']
 IMDB_Rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
-"""calculating metascores values according to intercept ang coefficient value of imdb scores"""
+"""calculating metascores values according to intercept and coefficient value of imdb scores"""
 meta_scores_null = round((-14.871812557167843) + (11.707244939463374)*IMDB_Rating_null)
+"""imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
 merged_data.info()
-"""AFTER IMPUTATION"""
+"""VISUALIZATION AFTER IMPUTATION"""
 grouped = merged_data.groupby('IMDB_Rating')
 mean_metascore_by_imdb = grouped['Meta_score'].mean()
 print(mean_metascore_by_imdb)
@@ -290,6 +342,88 @@ plt.ylabel('Meta_score')
 plt.title('Metascore vs imdb scores after imputation')
 plt.show()
 
+"""PLOTTING DISTRIBUTION"""
+numerical_columns = ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross']
+for x in numerical_columns:
+    sns.histplot(merged_data[x],kde = True,bins = len(merged_data[x].unique()))
+    plt.xlabel(x)
+    plt.title('Distribution after imputation')
+    plt.show()
+merged_data['Gross'].nsmallest()
+"""Descriptive analytics"""
+merged_data[numerical_columns].describe()
+"""Having insight of categorical variables unique values for detecting anormality"""
+merged_data['Certificate'].unique()
+merged_data['Genre'].unique()
+merged_data['Director'].unique()
+merged_data['Star1'].unique()
+merged_data['Star2'].unique()
+merged_data['Star3'].unique()
+merged_data['Star4'].unique()
+merged_data['Series_Title'].unique()
 
+"""EXPLORATORY ANALYSIS"""
+
+"""Question1; Who are the director's of 5 movies with highest gross values  and what are the genres of these films?"""
+#getting rows including  first 5 highest gross values
+merged_data_gross_max = merged_data.sort_values(by = 'Gross', ascending=False).head()
+#merged_data_gross_max
+"""Plotting stripplot"""
+sns.stripplot(x = 'Director',y = 'Gross',hue = 'Genre',data = merged_data_gross_max)
+plt.xticks(rotation=40)
+plt.show()
+
+"""Question 2 = Who are the leading actors of the films with the highest 5 imdb points that are Oscar awarded and 
+what is the certificate of these films?"""
+"""extracting oscar awarded movies"""
+awarded = merged_data[merged_data['win']== 1]
+awarded = awarded.sort_values(by= 'IMDB_Rating',ascending = False).head()
+#awarded
+sns.stripplot(x = 'Certificate',y = 'Star1',hue = 'Series_Title',data = awarded)
+plt.show()
+
+"""Question 3 : Which words were used mostly in the overview of the top 50 movies with highest number of votes which are Oscar awarded? """
+
+awarded = merged_data[merged_data['win']== 1]
+awarded = awarded.sort_values(by= 'No_of_Votes',ascending = False).head(50)
+
+
+def plot_cloud(wordcloud):
+    plt.figure(figsize=(15, 15))
+    plt.imshow(wordcloud)
+
+    plt.axis("off");
+
+
+wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd", random_state=10).generate(
+    ' '.join(awarded['Overview']))
+plot_cloud(wordcloud)
+
+"""Question 4 : According to descriptive statistics,awarded and not awarded datas have almost similar statistical values of imdb scores.
+Are they really similar or not?"""
+
+#group data by win column
+merged_data.groupby('win')['IMDB_Rating'].describe()
+#oscar awarded data
+awarded_data = merged_data[merged_data['win']==1]
+#not awarded data
+not_oscar_awarded_data = merged_data[merged_data['win']==0]
+#imdb scores of awarded movies
+imdb_oscar = awarded_data['IMDB_Rating']
+#imdb scores of not awarded movies
+imdb_not_oscar = not_oscar_awarded_data['IMDB_Rating']
+"""Write function for plotting cumulative distribution function """
+def ecdf(df):
+    """Compute ECDF for a one-dimensional array of measurements."""
+    # Number of data points
+    length = len(df)
+
+    # sorting x array: x
+    x = np.sort(df)
+
+    # y-data for the ECDF: y
+    y = np.arange(1, length+1) / length
+
+    return x, y
 
 
