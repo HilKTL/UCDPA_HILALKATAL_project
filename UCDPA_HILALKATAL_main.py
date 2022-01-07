@@ -343,11 +343,12 @@ plt.title('Metascore vs imdb scores after imputation')
 plt.show()
 
 """PLOTTING DISTRIBUTION"""
-numerical_columns = ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross']
+numerical_columns = ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross','Year_of_release']
 for x in numerical_columns:
     sns.histplot(merged_data[x],kde = True,bins = len(merged_data[x].unique()))
     plt.xlabel(x)
-    plt.title('Distribution after imputation')
+    title = print('Distribution of',x)
+    plt.title(title)
     plt.show()
 merged_data['Gross'].nsmallest()
 """Descriptive analytics"""
@@ -371,6 +372,7 @@ merged_data_gross_max = merged_data.sort_values(by = 'Gross', ascending=False).h
 """Plotting stripplot"""
 sns.stripplot(x = 'Director',y = 'Gross',hue = 'Genre',data = merged_data_gross_max)
 plt.xticks(rotation=40)
+plt.title('The directors and genres of the top 5 highest-grossing films')
 plt.show()
 
 """Question 2 = Who are the leading actors of the films with the highest 5 imdb points that are Oscar awarded and 
@@ -380,6 +382,7 @@ awarded = merged_data[merged_data['win']== 1]
 awarded = awarded.sort_values(by= 'IMDB_Rating',ascending = False).head()
 #awarded
 sns.stripplot(x = 'Certificate',y = 'Star1',hue = 'Series_Title',data = awarded)
+plt.title('The leading actors and certificates of the movies with the highest top 5 imdb scores')
 plt.show()
 
 """Question 3 : Which words were used mostly in the overview of the top 50 movies with highest number of votes which are Oscar awarded? """
