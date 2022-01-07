@@ -323,11 +323,11 @@ metascore_index_lst = metascore_null.index
 """extracting null values of metascores"""
 meta_scores_null = merged_data.loc[metascore_index_lst]['Meta_score']
 """extracting null values of imdb scores"""
-IMDB_Rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
+imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
 """calculating metascores values according to intercept and coefficient value of imdb scores"""
-meta_scores_null = round((-14.871812557167843) + (11.707244939463374)*IMDB_Rating_null)
+meta_scores_null = round((-14.871812557167843) + (11.707244939463374)*imdb_rating_null)
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -426,4 +426,54 @@ def ecdf(df):
 
     return x, y
 
+"""Plotting ecdf of imdb scores of awarded and not awarded data"""
+x,y = ecdf(imdb_not_oscar)
+x_oscar,y_oscar = ecdf(imdb_oscar)
+_ = plt.plot(x,y,marker = '*',linestyle = '-',label = 'Not_awarded')
+_ = plt.plot(x_oscar,y_oscar,marker = '*',linestyle = '-',label = 'Awarded')
 
+plt.legend(loc = 'lower right')
+_ = plt.xlabel('Imdb scores')
+_ = plt.ylabel('ECDF')
+plt.show()
+
+"""According to ecdf results, awarded movies have higher imdb scores.
+Permutation samples of imdb scores will be created to determine if they will overlap with the observed data"""
+"""Creating permutation samples for 50 times"""
+for _ in range(50):
+    # Concatenate two datasets
+    df = np.concatenate((imdb_oscar, imdb_not_oscar))
+
+    # Permute the concatenated array: permuted_data
+    permuted_df = np.random.permutation(df)
+
+    # Split the permuted array into two: perm_sample_1, perm_sample_2
+    perm_sample_awarded = permuted_df[:len(imdb_oscar)]
+    perm_sample_not_awarded = permuted_df[len(imdb_oscar):]
+
+    # Compute ECDFs
+    x_awarded, y_awarded = ecdf(perm_sample_awarded)
+    x_not_awarded, y_not_awarded = ecdf(perm_sample_not_awarded)
+
+    # Plot ECDFs of permutation samples
+    _ = plt.plot(x_awarded, y_awarded, marker='_',
+                 color='red', alpha=0.01)
+    _ = plt.plot(x_not_awarded, y_not_awarded, marker='_',
+                 color='blue', alpha=0.01)
+
+# Create and plot ECDFs from merged data(original data)
+x_org_awarded, y_org_awarded = ecdf(imdb_oscar)
+x_not_org_awarded, y_not_org_awarded = ecdf(imdb_not_oscar)
+_ = plt.plot(x_org_awarded, y_org_awarded, marker='.', color='red', label='Awarded')
+_ = plt.plot(x_not_org_awarded, y_not_org_awarded, marker='.', color='blue', label='Not_awarded')
+
+# Label axes, set margin, and show plot
+plt.margins(0.02)
+_ = plt.xlabel('imdb')
+_ = plt.ylabel('ECDF')
+plt.legend(loc='lower right')
+plt.title('ECDF of imdb scores awarded ,not awarded and permutation samples of concatenated awarded and not awarded movies')
+plt.show()
+
+"""According to graphic, we can see that none of permutation samples overlap on observed data ,they remain between ecdf line of awarded
+and not awarded data ,which shows that imdb scores aren't identically distributed between awarded and not awarded data"""
