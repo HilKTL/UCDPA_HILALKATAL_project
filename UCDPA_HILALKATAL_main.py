@@ -135,28 +135,85 @@ def missing_values_percentage(df) :
 print(missing_values_percentage(merged_data))
 """
 IMPUTATING GROSS COLUMN
-for datatype manipulation ,nan values were imputed with zero before,now these 0 values will be imputed after having descriptive statistical values of the gross column
+for datatype manipulation ,nan values were imputed with zero before,
+now these 0 values will be imputed after having descriptive statistical values of the gross column
 """
 merged_data['Gross'].describe()
-import seaborn as sns
-"""plotting Gross values before imputation"""
-sns.histplot(merged_data['Gross'])
-plt.xlabel('Gross', fontsize=10)
-plt.title('Distribution of Gross before imputation')
+#Finding out the correlation between gross column and other numerical columns
+columns = ['IMDB_Rating','Meta_score','No_of_Votes','Gross']
+subset = merged_data[columns]
+subset.corr()
+"""according to results,there is a high correlation between gross and number of votes column.
+Therefore,imputation will be made according to number of votes column"""
+#extracting data in which gross isnot null
+data = merged_data[~merged_data['Gross'].isnull()]
+
+#getting linear regression equation between gross and no_o_votes column
+from scipy.stats import linregress
+
+xi = data['No_of_Votes']
+yi = data['Gross']
+# Compute the linear regression
+results = linregress(xi,yi)
+print(results)
+"""According to results,per a vote,gross increases 189.88 points"""
+#VISUALIZATION BEFORE IMPUTATION
+#Group by numbers of votes
+grouped = merged_data.groupby('No_of_Votes')
+#Getting mean values of gross
+mean_gross_by_votes = grouped['Gross'].mean()
+#plotting of mean values of gross vs number of votes
+plt.plot(mean_gross_by_votes,'o',alpha = 0.5)
+plt.xlabel('No_of_Votes')
+plt.ylabel('Gross')
+plt.show()
+
+"""Plotting best fit line on the data points of metascores and imdb scores"""
+#Scatterplot between no_of_votes and gross
+plt.plot(xi,yi,'o',alpha = 0.1)
+#plot the best linear fit line on scatter plot
+#creating numpy array including min to max values of number of votes
+x = np.array([xi.min(),xi.max()])
+#creating linear equation according to linear regression slope and intercept values
+y = results.intercept+results.slope*x
+#plotting the best fit line
+plt.plot(x,y,'-',alpha = 0.7)
+plt.xlabel('No_of_Votes')
+plt.ylabel('Gross')
+plt.show()
+"""IMPUTATION ACCORDING TO LINEAR REGRESSION RESULTS"""
+#getting index number of null gross rows(for datatype manipulation null values were imputed with 0 (zero) before)
+gross_null = merged_data[merged_data['Gross']== 0]
+#creating list of index numbers
+gross_index_lst = gross_null.index
+#extracting null values of gross
+gross_scores_null = merged_data.loc[gross_index_lst]['Gross']
+#extracting no of votes values of null gross values
+votes_null = merged_data.loc[gross_index_lst]['No_of_Votes']
+#extracting null data
+data_null = merged_data.loc[gross_index_lst]
+#calculating gross values according to intercept and coefficient value of votes
+gross_scores_null = round((4567205.671409786) + ((189.8831508448906)*votes_null))
+#imputating null gross rows
+merged_data.loc[gross_index_lst,'Gross'] = gross_scores_null
+merged_data.loc[gross_index_lst].head()
+#The correlation between gross column and votes column after imputation
+columns = ['No_of_Votes','Gross']
+subset = merged_data[columns]
+subset.corr()
+#VISUALIZATION AFTER IMPUTATION
+#Group by numbers of votes
+grouped = merged_data.groupby('No_of_Votes')
+#Getting mean values of gross
+mean_gross_by_votes = grouped['Gross'].mean()
+#plotting of mean values of gross vs number of votes
+plt.plot(mean_gross_by_votes,'o',alpha = 0.5)
+plt.xlabel('No_of_Votes')
+plt.ylabel('Gross')
 plt.show()
 merged_data['Gross'].describe()
-len(merged_data[merged_data['Gross'] == 0])
-"""because the number of 0 values are nearly %17 of the values instead of mean median values will be used for imputation"""
-merged_data['Gross'] = [merged_data['Gross'].median() if x == 0 else x for x in merged_data['Gross']]
-merged_data['Gross'].describe()
-"""plotting Gross values after imputation"""
-sns.histplot(merged_data['Gross'])
-plt.xlabel('Gross', fontsize=10)
-plt.title('Distribution of Gross after imputation')
-plt.show()
-merged_data['Gross'].nsmallest()
-merged_data['Gross'].nlargest()
 merged_data['Gross'].isnull().sum()
+
 """IMPUTATING CERTIFICATE COLUMN ACCORDING TO GENRES COLUMN"""
 merged_data['Certificate'].value_counts()
 """Defining a function for certificate values imputation"""
@@ -274,11 +331,12 @@ merged_data['Certificate'].value_counts()
 """IMPUTATION OF METASCORE COLUMN"""
 len(merged_data[merged_data['Meta_score'].isnull()])
 merged_data['Meta_score'].describe()
-"""investigating correlation between metascore column and other numerical columns"""
+"""Finding out the correlation between metascore column and other numerical columns"""
 columns = ['IMDB_Rating', 'Meta_score', 'No_of_Votes', 'Gross']
 subset = merged_data[columns]
 subset.corr()
-"""according to results,although it is a small correlation ,only imdb scores have correlation with metascores,so imputation will be made according to imdb score column."""
+"""according to results,although it is a small correlation ,only imdb scores have correlation with metascores,
+so imputation will be made according to imdb score column."""
 """VISUALIZATION BEFORE IMPUTATION"""
 """Group by imdb scores"""
 grouped = merged_data.groupby('IMDB_Rating')
@@ -302,9 +360,9 @@ results = linregress(xi, yi)
 print(results)
 """according to results it means that metascores increases 11.71 points per 1 point of imdb scores"""
 """Plotting best fit line on the data points of metascores and imdb scores"""
-"""Scatterplot"""
+"""Scatterplot of imdb scores and metascores"""
 plt.plot(xi, yi, 'o', alpha=0.1)
-"""plot the best fit line"""
+"""plot the best fit linear regression line"""
 """creating numpy array including min to max values of imdb scores"""
 x = np.array([xi.min(), xi.max()])
 """creating linear equation according to linear regression slope and intercept values"""
@@ -341,8 +399,14 @@ plt.xlabel('IMDB_Rating')
 plt.ylabel('Meta_score')
 plt.title('Metascore vs imdb scores after imputation')
 plt.show()
+#The correlation between metascore column imdb scores after imputation
+columns = ['IMDB_Rating','Meta_score']
+subset = merged_data[columns]
+subset.corr()
 
+"""DISTRUBUTION OF NUMERICAL ATTIBUTES"""
 """PLOTTING DISTRIBUTION"""
+import seaborn as sns
 numerical_columns = ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross','Year_of_release']
 for x in numerical_columns:
     sns.histplot(merged_data[x],kde = True,bins = len(merged_data[x].unique()))
@@ -480,3 +544,52 @@ plt.show()
 
 """According to graphic, we can see that none of permutation samples overlap on observed data ,they remain between ecdf line of awarded
 and not awarded data ,which shows that imdb scores aren't identically distributed between awarded and not awarded data"""
+
+"""Question 5= Who are the leading actors of top 20 movies with highest gross values?"""
+#extracting Oscar awarded movies
+awarded_data = merged_data[merged_data['win']  == 1]
+#extracting leading actor and gross columns
+star1_gross= awarded_data[['Star1','Gross']]
+#grouping data by actors and getting mean of gross
+mean_gross = star1_gross.groupby('Star1').mean()/1000000
+#sorting gross values
+mean_gross = mean_gross.sort_values('Gross', ascending=False)
+#extracting first 20 top gross values
+mean_gross_first_twenty = mean_gross.head(20)
+#visualization
+mean_gross_first_twenty.plot.barh(title = 'Leading actors of the movies with top 20 highest profits ',color = 'c',figsize=(11, 6))
+plt.xlabel('Gross in millions')
+plt.show()
+
+"""Question 6: What is the distribution of genres of awarded movies?"""
+from collections import Counter
+
+# Counter is a sub-class to count hashable objects as key: value pairs (as a dictionary)
+# extract awarded movies' genres
+dtseries = awarded_data["Genre"]
+# print(dtseries)
+
+
+# creating empty list to collect genres
+counts_lst = []
+for entry in dtseries:
+    # print(entry)
+    # extract each genre from groups of genres
+    a = entry.split(",")
+
+    # print(a)
+    for genre in a:
+        # print(genre)
+        # strip white space
+        genre = genre.strip()
+        # print(genre)
+        counts_lst.append(genre)
+
+# getting dictionary of genres and counts
+Counter(counts_lst)
+#creating series of counted list
+awarded_genre = pd.Series(counts_lst)
+#plotting genres according to counts of each genre
+sns.countplot(x = awarded_genre)
+plt.xticks(rotation = 50)
+plt.title('Genres of awarded movies')
