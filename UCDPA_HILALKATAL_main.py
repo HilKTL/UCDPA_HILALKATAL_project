@@ -593,3 +593,88 @@ awarded_genre = pd.Series(counts_lst)
 sns.countplot(x = awarded_genre)
 plt.xticks(rotation = 50)
 plt.title('Genres of awarded movies')
+
+"""PREDICTIVE ANALYSIS"""
+
+"""FEATURE ENGINEERING ON CATEGORICAL ATTRIBUTES"""
+"""One-Hot encoding the categorical parameters using get_dummies()"""
+Genre = merged_data['Genre']
+Genre = pd.get_dummies(Genre)
+Certificate = merged_data['Certificate']
+Certificate = Certificate.str.get_dummies()
+Overview = merged_data['Overview']
+Overview = Overview.str.get_dummies()
+Star1 = merged_data['Star1']
+Star1 = Star1.str.get_dummies()
+Star2 = merged_data['Star2']
+Star2 = Star2.str.get_dummies()
+Star3 = merged_data['Star3']
+Star3 = Star3.str.get_dummies()
+Star4 = merged_data['Star4']
+Star4 = Star4.str.get_dummies()
+Director = merged_data['Director']
+Director = Director.str.get_dummies()
+merged_data_encoded = pd.concat(
+    [merged_data.drop(
+        ['Genre', 'Certificate', 'Overview', 'Poster_Link', 'Star4', 'Director', 'Star1', 'Star2', 'Star3',
+         'Ceremony Year'],
+        axis=1
+    ),Genre, Certificate, Overview, Star1, Star2, Star3, Star4, Director],
+    axis=1,)
+merged_data_encoded.head()
+
+"""FINDING OUT OUTLIERS"""
+"""PLOTTING OUTLIERS"""
+for x in ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross']:
+    boxplot = merged_data_encoded.boxplot(column=[x],figsize =(3,3))
+    plt.show()
+
+#determination of percentage of outlier values of a column
+def outliers_percentage(x):
+    """finding upper and lower outlier values"""
+    #first quantile
+    q1 = merged_data_encoded[x].quantile(0.25)
+    #third quantile
+    q3 = merged_data_encoded[x].quantile(0.75)
+    #interquar
+    Interquar=q3-q1
+    #print(q1)
+    #print(q3)
+    #print(Interquar)
+    #lower outlier value(1.5 times interquar lower than first quantile)
+    Lower_outlier_value = q1-(1.5*Interquar)
+    #Upper outlier value(1.5 times interquar upper than third quantile)
+    Upper_outlier_value = q3+(1.5*Interquar)
+    #percentage of outlier values
+    percentage = round((len(merged_data_encoded[merged_data_encoded[x] > Upper_outlier_value]) + len(merged_data_encoded[merged_data_encoded[x] < Lower_outlier_value]))/merged_data_encoded.shape[0]*100,2)
+    return percentage
+outliers_percentage('No_of_Votes')
+def sum_per_outliers(lst):
+    """calculating total percentage of outliers"""
+    #define empty list for percentage of outliers
+    percentage_lst = []
+    for x in lst:
+        #getting percentage of outliers
+        percentage = outliers_percentage(x)
+        #collecting percentage for each column
+        percentage_lst.append(percentage)
+        #calculating total percentage of outliers
+    return np.sum(percentage_lst)
+#total percentage of outliers of all numerical columns
+sum_per_outliers(['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross'])
+
+"""Since the amount of outliers are  25.5% percent of the data ,outliers will not be removed,
+instead they  will be scaled with robust standardization which uses quartile method for scaling.
+Before scaling correlation between independent variables will be examined."""
+
+"""EXCLUDE HIGHLY CORRELATED FEATURES"""
+
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'No_of_Votes','Year_of_release','win']
+cor = merged_data_encoded[columns_to_scale].corr(method = 'pearson')
+plt.figure(figsize = (10,6))
+sns.heatmap(cor, annot = True ,square=True, cmap='RdYlGn',fmt='.4g')
+
+"""The number of votes has high correlation with gross column. The correlation between the number of votes and the 
+target variable('win') is slightly higher than the correlation between  win and gross earnings. 
+On the other hand, the number of votes column has an upper bound moderate correlation with imdb scores. 
+For this reason, model performance will be evaluated in scaling process by dropping each column separately."""
