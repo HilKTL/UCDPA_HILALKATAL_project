@@ -48,6 +48,9 @@ dfa = pd.read_csv('C:\\Users\\serta\\Desktop\\IMDB_kaggle\\imdb_top_1000.csv')
 dfa.head()
 oscar_df = pd.read_csv("C:\\Users\\serta\\Desktop\\my_data\\the_oscar_award.csv")
 oscar_df.head()
+oscar_df['year_film'].nsmallest()
+oscar_df['year_film'].nlargest()
+oscar_df[oscar_df['year_film']==2019].head(2)
 """MERGING IMDB AND OSCAR MOVIES DATASET"""
 """extracting Oscar awarded movies"""
 oscar_winner_df = oscar_df[oscar_df['winner'] == True]
@@ -62,7 +65,7 @@ df.head(1)
 left = dfa
 right = df
 """merging two data frames on Series title column"""
-"""merging outer methof for taking union of both datasets"""
+"""merging outer method for taking union of both datasets"""
 merged_data = pd.merge(left, right, on='Series_Title', how='outer')
 merged_data.head()
 """DATATYPE MANIPULATION"""
@@ -119,6 +122,13 @@ duplicated_titles[duplicated_titles['Ceremony Year'] < duplicated_titles['Year_o
 print(merged_data[merged_data['Series_Title'].isin(['Titanic', 'Little Women', 'A Star Is Born', 'Drishyam', 'King Kong', 'Up'])].iloc[:, [1, 15, 16, 17]])
 """duplicated rows and films that are not in imdb movies will be drop from merged data(Oscar+imdb movies data)"""
 merged_data.drop(index = [35,36,599,685,686,1336,1387],inplace = True)
+"""First Oscar award , honored the best films of 1927 and 1928 so the years smaller than 1927 will be dropped"""
+merged_data[merged_data['Year_of_release'].isin([1920,1921,1922,1923,1924,1925,1926])]
+merged_data = merged_data.drop(labels=[215,286,798,961,1130,1138,1169], axis=0)
+merged_data['Year_of_release'].nsmallest(2)
+"""Oscar awarded data has movies up to 2019 so 2020 movies will be dropped from the merged data for accurate results"""
+merged_data[merged_data['Year_of_release']== 2020]
+merged_data = merged_data.drop(labels=[313,339,479,993,994,1316], axis=0)
 merged_data.info()
 """MISSING VALUES IMPUTATION"""
 merged_data.isna().sum()
@@ -193,7 +203,7 @@ votes_null = merged_data.loc[gross_index_lst]['No_of_Votes']
 #extracting null data
 data_null = merged_data.loc[gross_index_lst]
 #calculating gross values according to intercept and coefficient value of votes
-gross_scores_null = round((4567205.671409786) + ((189.8831508448906)*votes_null))
+gross_scores_null = round((4932027.479523882) + ((189.45808180241434)*votes_null))
 #imputating null gross rows
 merged_data.loc[gross_index_lst,'Gross'] = gross_scores_null
 merged_data.loc[gross_index_lst].head()
@@ -384,8 +394,8 @@ meta_scores_null = merged_data.loc[metascore_index_lst]['Meta_score']
 imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
-"""calculating metascores values according to intercept and coefficient value of imdb scores"""
-meta_scores_null = round((-14.871812557167843) + (11.707244939463374)*imdb_rating_null)
+#calculating metascores values according to intercept and coefficient value of imdb scores
+meta_scores_null = round((-14.507536474321896) + ((11.654852554954296)*IMDB_Rating_null))
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -674,7 +684,7 @@ cor = merged_data_encoded[columns_to_scale].corr(method = 'pearson')
 plt.figure(figsize = (10,6))
 sns.heatmap(cor, annot = True ,square=True, cmap='RdYlGn',fmt='.4g')
 
-"""The number of votes has high correlation with gross column. The correlation between the number of votes and the 
-target variable('win') is slightly higher than the correlation between  win and gross earnings. 
-On the other hand, the number of votes column has an upper bound moderate correlation with imdb scores. 
-For this reason, model performance will be evaluated in scaling process by dropping each column separately."""
+"""The number of votes has high correlation with gross and IMDB column. 
+The correlation between the number of votes and the target variable('win') is slightly higher than the correlation between  win and gross earnings.
+ On the other hand, the number of votes column has high correlation with imdb scores. For this reason,
+ model performance will be evaluated in scaling process by dropping each column separately."""
