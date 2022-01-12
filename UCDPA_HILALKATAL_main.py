@@ -26,6 +26,7 @@ from sklearn.metrics import accuracy_score
 """Sending http request with request module"""
 import requests
 file = requests.get("https://www.kaggle.com/harshitshankhdhar/imdb-dataset-of-top-1000-movies-and-tv-shows/download")
+print(file.status_code)
 df = file.text
 """read file and assign it to variable
 give write permission to the opened file
@@ -35,6 +36,7 @@ dfa.write(df)
 dfa.close()
 """2-Oscar award movies dataset"""
 file = requests.get("https://www.kaggle.com/unanimad/the-oscar-award/download")
+print(file.status_code)
 df = file.text
 """read file and assign it to variable
 give write permission to the opened file
@@ -48,9 +50,26 @@ dfa = pd.read_csv('C:\\Users\\serta\\Desktop\\IMDB_kaggle\\imdb_top_1000.csv')
 dfa.head()
 oscar_df = pd.read_csv("C:\\Users\\serta\\Desktop\\my_data\\the_oscar_award.csv")
 oscar_df.head()
-oscar_df['year_film'].nsmallest()
-oscar_df['year_film'].nlargest()
-oscar_df[oscar_df['year_film']==2019].head(2)
+"""There is no column of title type(e.g. movies,tv series) in dfa file.
+Since the target variable in the analysis is whether to win an Oscar or not, we will only extract movies from the file.
+Because only movies are honoured with Oscar award.Therefore, title.basics.tsv.gz will be downloaded from IMDb database to get the 
+title types of dfa"""
+#getting list of name of the movies of dfa file
+titles = [x for x in dfa['Series_Title']]
+#titles
+#Read csv in dataframe
+df = pd.read_csv('C:\\Users\\serta\Downloads\\title.basics.tsv.gz',delimiter="\t")
+df['titleType'].unique()
+df_movies = df[df['titleType']=='movie']
+df_movies.head()
+df_movies = df_movies[df_movies['originalTitle'].isin(titles)].drop_duplicates(subset = 'originalTitle' )
+#df_movies
+#getting list of name of the movies of df file
+titles_movies = [x for x in df_movies['originalTitle']]
+#extracting movies from dfa file
+dfa = dfa[dfa['Series_Title'].isin(titles_movies)]
+dfa.info()
+
 """MERGING IMDB AND OSCAR MOVIES DATASET"""
 """extracting Oscar awarded movies"""
 oscar_winner_df = oscar_df[oscar_df['winner'] == True]
@@ -110,26 +129,31 @@ merged_data['Year_of_release'].head(1)
 """dropping the released year column"""
 merged_data.drop('Released_Year', inplace=True, axis=1)
 merged_data.info()
-"""Merged data should have 1000 entries but it has 1007 so it will be examined :"""
+"""Merged data should have 983 entries(since dfa has 983 rows) but it has 990 so it will be examined :"""
 """extracting duplicated movies on series title"""
 duplicated_titles = merged_data[merged_data.duplicated(subset='Series_Title')]
-print(duplicated_titles.iloc[:, [1, 15, 16]])
+print(duplicated_titles)
 """calling duplicated movies from imdb movies dataset"""
 dfa[dfa['Series_Title'].isin(['Titanic','Little Women','A Star Is Born','Drishyam','King Kong','Up'])]
 """calling duplicated movies with wrong ceremony year"""
 duplicated_titles[duplicated_titles['Ceremony Year'] < duplicated_titles['Year_of_release']]
-"""ceremony year of awarded movie cannot be smaller than year of release so 36 and 686 will be removed."""
+#Ceremony year of awarded movie cannot be smaller than year of release so 36 and 677 will be removed.
 print(merged_data[merged_data['Series_Title'].isin(['Titanic', 'Little Women', 'A Star Is Born', 'Drishyam', 'King Kong', 'Up'])].iloc[:, [1, 15, 16, 17]])
-"""duplicated rows and films that are not in imdb movies will be drop from merged data(Oscar+imdb movies data)"""
-merged_data.drop(index = [35,36,599,685,686,1336,1387],inplace = True)
+merged_data[merged_data['Series_Title'] == 'King Kong']
+#duplicated rows and films that are not in imdb movies will be drop from merged data(Oscar+imdb movies data)
+merged_data.drop(index = [35,36,593,676,677,1318,1369],inplace = True)
+#Ceremony year of awarded movie cannot be smaller than year.
+#getting information of released year range of Oscar df
+print(oscar_df['year_film'].nsmallest(2),oscar_df['year_film'].nlargest(2))
+#getting information of released year range of merged data
+print(merged_data['Year_of_release'].nsmallest(2),merged_data['Year_of_release'].nlargest(2))
 """First Oscar award , honored the best films of 1927 and 1928 so the years smaller than 1927 will be dropped"""
-merged_data[merged_data['Year_of_release'].isin([1920,1921,1922,1923,1924,1925,1926])]
-merged_data = merged_data.drop(labels=[215,286,798,961,1130,1138,1169], axis=0)
-merged_data['Year_of_release'].nsmallest(2)
 """Oscar awarded data has movies up to 2019 so 2020 movies will be dropped from the merged data for accurate results"""
-merged_data[merged_data['Year_of_release']== 2020]
-merged_data = merged_data.drop(labels=[313,339,479,993,994,1316], axis=0)
+index_of_inappropriate_dates = merged_data[merged_data['Year_of_release'].isin([1920,1921,1922,1923,1924,1925,1926,2020])].index
+print(index_of_inappropriate_dates)
+merged_data = merged_data.drop(index=index_of_inappropriate_dates, axis=0)
 merged_data.info()
+
 """MISSING VALUES IMPUTATION"""
 merged_data.isna().sum()
 """Missing value visualization for detecting if the missing values have any relationhip between variables to detect missingness is not random or not"""
@@ -203,7 +227,7 @@ votes_null = merged_data.loc[gross_index_lst]['No_of_Votes']
 #extracting null data
 data_null = merged_data.loc[gross_index_lst]
 #calculating gross values according to intercept and coefficient value of votes
-gross_scores_null = round((4932027.479523882) + ((189.45808180241434)*votes_null))
+gross_scores_null = round((5263703.110095441) + ((190.4525132397611)*votes_null))
 #imputating null gross rows
 merged_data.loc[gross_index_lst,'Gross'] = gross_scores_null
 merged_data.loc[gross_index_lst].head()
@@ -303,8 +327,8 @@ mask1 = merged_data['Genre'].str.contains(r"(Comedy, Crime)(?!,)")
 merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Crime)(?!,)")
 mask1 = merged_data['Genre'].str.contains(r"(Family)")
 merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Family)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Fantasy)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Crime, Drama, Fantasy)")
+mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Fantasy)(?!,)")
+merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Crime, Drama, Fantasy)(?!,)")
 mask1 = merged_data['Genre'].str.contains(r"(Comedy, War)(?!,)")
 merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Comedy, War)(?!,)")
 mask1 = merged_data['Genre'].str.contains(r"(Drama, Fantasy)(?!,)")
@@ -325,11 +349,11 @@ merged_data[merged_data['Genre'].isin(['Action, Adventure, Biography','Action, A
 """Since there are no genres similar to these ones in our data, these nan 
 certificate columns will be imputed with approppriate value after searching on 'https://www.imdb.com/' """
 """Imputing  movies' certificate"""
-merged_data.loc[[49,246],'Certificate'] = 'A'
-merged_data.loc[341,'Certificate'] = 'U'
-merged_data.loc[607,'Certificate'] = 'TV-14'
-merged_data.loc[1232,'Certificate'] = 'PG'
-merged_data.loc[[49,246,341,607,1232]]
+merged_data.loc[[49,241],'Certificate'] = 'A'
+merged_data.loc[336,'Certificate'] = 'U'
+merged_data.loc[601,'Certificate'] = 'TV-14'
+merged_data.loc[1214,'Certificate'] = 'PG'
+merged_data.loc[[49,241,336,601,1214]]
 merged_data['Certificate'].isnull().sum()
 merged_data.info()
 merged_data['Certificate'].value_counts()
@@ -395,7 +419,7 @@ imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
 #calculating metascores values according to intercept and coefficient value of imdb scores
-meta_scores_null = round((-14.507536474321896) + ((11.654852554954296)*IMDB_Rating_null))
+meta_scores_null = round((-16.90239877564008) + ((11.960092936857253)*IMDB_Rating_null))
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -605,6 +629,8 @@ plt.xticks(rotation = 50)
 plt.title('Genres of awarded movies')
 
 """PREDICTIVE ANALYSIS"""
+#changing index as titles of movies
+merged_data = merged_data.set_index('Series_Title')
 
 """FEATURE ENGINEERING ON CATEGORICAL ATTRIBUTES"""
 """One-Hot encoding the categorical parameters using get_dummies()"""
@@ -673,7 +699,7 @@ def sum_per_outliers(lst):
 #total percentage of outliers of all numerical columns
 sum_per_outliers(['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross'])
 
-"""Since the amount of outliers are  25.5% percent of the data ,outliers will not be removed,
+"""Since the amount of outliers are  25.15% percent of the data ,outliers will not be removed,
 instead they  will be scaled with robust standardization which uses quartile method for scaling.
 Before scaling correlation between independent variables will be examined."""
 
