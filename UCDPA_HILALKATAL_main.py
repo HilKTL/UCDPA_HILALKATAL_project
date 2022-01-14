@@ -44,6 +44,11 @@ write the contents of the heart_dis variable to the file, then close the file by
 oscar_df = open("oscar.csv", "w")
 oscar_df.write(df)
 oscar_df.close()
+"""3- Imdb title basics data"""
+r = requests.get('https://datasets.imdbws.com/title.basics.tsv.gz')
+with open('C:\\Users\\serta\Downloads\\title.basics.tsv.gz', 'wb') as file:
+    file.write(r.content)
+print(r.status_code)
 """ Read csv files into dataframe with pandas"""
 import pandas as pd
 dfa = pd.read_csv('C:\\Users\\serta\\Desktop\\IMDB_kaggle\\imdb_top_1000.csv')
@@ -58,7 +63,7 @@ title types of dfa"""
 titles = [x for x in dfa['Series_Title']]
 #titles
 #Read csv in dataframe
-df = pd.read_csv('C:\\Users\\serta\Downloads\\title.basics.tsv.gz',delimiter="\t")
+df = pd.read_csv('C:\\Users\\serta\Downloads\\title.basics.tsv.gz',usecols = ['titleType','originalTitle'],dtype={'titleType':'category','originalTitle':'category'} ,delimiter="\t")
 df['titleType'].unique()
 df_movies = df[df['titleType']=='movie']
 df_movies.head()
@@ -87,6 +92,7 @@ right = df
 """merging outer method for taking union of both datasets"""
 merged_data = pd.merge(left, right, on='Series_Title', how='outer')
 merged_data.head()
+#dropping ceremony year column
 """DATATYPE MANIPULATION"""
 """Getting information of missing values and datatypes"""
 merged_data.info()
@@ -109,7 +115,7 @@ merged_data['Runtime'] = [int(str(i).replace("min", "")) for i in merged_data['R
 merged_data['Gross'] = merged_data['Gross'].fillna(0)
 merged_data['Gross'] = [int(str(i).replace(",", "")) for i in merged_data['Gross']]
 numerical_attributes = ['Ceremony Year', 'Runtime', 'No_of_Votes']
-"""there is no day or month on ceremony year column so instead of date format,it will be changed to integer"""
+"""there is no day or month on ceremony year column so instead of date format,it will be changed to integer,it will bw dropped later"""
 merged_data[numerical_attributes] = merged_data[numerical_attributes].astype('int64')
 merged_data['Gross'] = merged_data['Gross'].astype('float64')
 """writing list comprehension for win column instead of for loop which is more declarative and shorter"""
@@ -177,8 +183,7 @@ merged_data['Gross'].describe()
 columns = ['IMDB_Rating','Meta_score','No_of_Votes','Gross']
 subset = merged_data[columns]
 subset.corr()
-"""according to results,there is a high correlation between gross and number of votes column.
-Therefore,imputation will be made according to number of votes column"""
+#"""according to results,there is a high correlation between gross and number of votes column.Therefore,imputation will be made according to number of votes column
 #extracting data in which gross isnot null
 data = merged_data[~merged_data['Gross'].isnull()]
 
@@ -419,7 +424,7 @@ imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
 #calculating metascores values according to intercept and coefficient value of imdb scores
-meta_scores_null = round((-16.90239877564008) + ((11.960092936857253)*IMDB_Rating_null))
+meta_scores_null = round((-16.90239877564008) + ((11.960092936857253)*imdb_rating_null))
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -631,15 +636,15 @@ plt.title('Genres of awarded movies')
 """PREDICTIVE ANALYSIS"""
 #changing index as titles of movies
 merged_data = merged_data.set_index('Series_Title')
+#dropping Overview column before encoding
+merged_data.drop(columns = 'Overview',axis =1,inplace = True)
 
 """FEATURE ENGINEERING ON CATEGORICAL ATTRIBUTES"""
 """One-Hot encoding the categorical parameters using get_dummies()"""
 Genre = merged_data['Genre']
-Genre = pd.get_dummies(Genre)
+Genre = Genre.str.get_dummies()
 Certificate = merged_data['Certificate']
 Certificate = Certificate.str.get_dummies()
-Overview = merged_data['Overview']
-Overview = Overview.str.get_dummies()
 Star1 = merged_data['Star1']
 Star1 = Star1.str.get_dummies()
 Star2 = merged_data['Star2']
@@ -652,10 +657,10 @@ Director = merged_data['Director']
 Director = Director.str.get_dummies()
 merged_data_encoded = pd.concat(
     [merged_data.drop(
-        ['Genre', 'Certificate', 'Overview', 'Poster_Link', 'Star4', 'Director', 'Star1', 'Star2', 'Star3',
+        ['Genre', 'Certificate', 'Poster_Link', 'Star4', 'Director', 'Star1', 'Star2', 'Star3',
          'Ceremony Year'],
         axis=1
-    ),Genre, Certificate, Overview, Star1, Star2, Star3, Star4, Director],
+    ),Genre, Certificate,Star1, Star2, Star3, Star4, Director],
     axis=1,)
 merged_data_encoded.head()
 
@@ -714,3 +719,152 @@ sns.heatmap(cor, annot = True ,square=True, cmap='RdYlGn',fmt='.4g')
 The correlation between the number of votes and the target variable('win') is slightly higher than the correlation between  win and gross earnings.
  On the other hand, the number of votes column has high correlation with imdb scores. For this reason,
  model performance will be evaluated in scaling process by dropping each column separately."""
+
+"""SCALE NUMERICAL COLUMNS"""
+"""MODEL ACCURACY BEFORE ROBUST SCALING (AFTER DROPPING GROSS COLUMN)"""
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
+y = merged_data_encoded['win']
+X.head(2)
+"""Defining cross validation model accuracy function"""
+# importing classification models
+from sklearn import model_selection
+from sklearn. linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+def models_accuracy_scores(model_lst,independent,dependent):
+    #creating empty list for model names
+    model_names = []
+    #determining predictive models for classification
+    models = model_lst
+    #looping for each model
+    for model_name, model in models:
+        #create crossvalidation with 10 splits and 10 repeats with RepeatedstratifiedKfold
+        cv = RepeatedStratifiedKFold(n_splits=10, random_state=1)
+        #getting validation scores(scoring is accuracy because dependent variable is binary and classification analysis will be applied)
+        scores = model_selection.cross_val_score(model, independent, dependent, cv=cv, scoring='accuracy')
+        #getting model names for printing
+        model_names.append(model_name)
+        #rounding average score to 3 decimal places
+        average_accuracy = round(scores.mean(),3)
+        #printing the results
+        print('Average accuracy score of',model_name,'is:',average_accuracy)
+"""Getting cross validation accuracy scores with models_accuracy_scores function"""
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
+y = merged_data_encoded['win']
+models = [('LogReg', LogisticRegression(solver = 'liblinear')),
+          ('RandomForest',RandomForestClassifier(n_estimators=100)),
+          ('DecTree', DecisionTreeClassifier()),
+          ('KNN', KNeighborsClassifier()),
+          ('SVM', SVC(gamma = 'scale'))]
+models_accuracy_scores(models,X,y)
+"""ROBUST SCALING"""
+"""Getting accuracy scores of different quantile ranges"""
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
+y = merged_data_encoded['win']
+from sklearn.preprocessing import RobustScaler
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.pipeline import Pipeline
+#determining independent variables
+columns_to_scale  = merged_data_encoded[['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes', 'Year_of_release']]
+#determining target variable
+win = merged_data_encoded['win']
+#looping through quantile ranges
+for ranges in ((1.0, 99.0),(2.0,98.0),(5.0, 95.0),(10.0, 90.0),(15.0, 85.0),(25.0, 75.0)):
+    #instantiate scaler
+    scaler = RobustScaler(with_centering=True,
+    with_scaling=True,
+    quantile_range= ranges,copy=True)
+    #instantiate model
+    model =KNeighborsClassifier()
+    #instantiate pipeline for two steps(first scaling will be done,then model fitting)
+    pipeline = Pipeline(steps=[('scaler', scaler), ('model', model)])
+    ##instantiate cross validation
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    #getting cross validation scores
+    scores = cross_val_score(pipeline, columns_to_scale, win, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
+    #rounding scores numbers to 4 decimal places
+    scores = round(np.mean(scores),4)
+    print('For quantile range:',ranges,'average score is:',scores)
+"""Since accuracy of (15, 85.0) is the highest,scaling will be done with this range."""
+"""Apply Robust Scale"""
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes', 'Year_of_release']
+scaler = RobustScaler(with_centering=True,
+    with_scaling=True,
+    quantile_range=(15.0,85.0),copy=True)
+merged_data_encoded[columns_to_scale] =scaler.fit_transform(merged_data_encoded[columns_to_scale])
+merged_data_encoded[columns_to_scale].head()
+"""Model accuracy testing after robust scaling"""
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
+y = merged_data_encoded['win']
+models = [('LogReg', LogisticRegression(solver = 'liblinear')),
+          ('RandomForest',RandomForestClassifier(n_estimators=100)),
+          ('DecTree', DecisionTreeClassifier()),
+          ('KNN', KNeighborsClassifier()),
+          ('SVM', SVC(gamma = 'scale'))]
+models_accuracy_scores(models,X,y)
+"""# MODEL ACCURACY BEFORE ROBUST SCALING (AFTER DROPPING NO_OF_VOTES COLUMN)"""
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win','No_of_Votes'],axis = 1)
+y = merged_data_encoded['win']
+models = [('LogReg', LogisticRegression(solver = 'liblinear')),
+          ('RandomForest',RandomForestClassifier(n_estimators=100)),
+          ('DecTree', DecisionTreeClassifier()),
+          ('KNN', KNeighborsClassifier()),
+          ('SVM', SVC(gamma = 'scale'))]
+models_accuracy_scores(models,X,y)
+# ROBUST SCALING
+# Getting accuracy scores of different quantile ranges"""
+from sklearn.model_selection import RepeatedStratifiedKFold
+from sklearn.pipeline import Pipeline
+
+# determining independent variables
+columns_to_scale = merged_data_encoded[['Runtime', 'IMDB_Rating', 'Meta_score', 'Gross', 'Year_of_release']]
+# determining target variable
+win = merged_data_encoded['win']
+# looping in quantile ranges
+
+for ranges in ((1.0, 99.0), (2.0, 98.0), (5.0, 95.0), (10.0, 90.0), (15.0, 85.0), (25.0, 75.0)):
+    # instaantiate Robust Scaler
+    scaler = RobustScaler(with_centering=True,
+                          with_scaling=True,
+                          quantile_range=ranges, copy=True)
+    # instantiate model
+    model = KNeighborsClassifier()
+    # initiate pipeline for two steps(first scaling will be done,then model fitting)
+    pipeline = Pipeline(steps=[('scaler', scaler), ('model', model)])
+    ##instantiate cross validation
+    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
+    # getting cross validation scores
+    scores = cross_val_score(pipeline, columns_to_scale, win, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
+    # rounding scores numbers to 4 digit
+    scores = round(np.mean(scores), 4)
+
+    print('For quantile range:', ranges, 'average score is:', scores)
+"""Apply Robust Scaler"""
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'Year_of_release']
+scaler = RobustScaler(with_centering=True,
+    with_scaling=True,
+    quantile_range=(25.0, 75.0),copy=True)
+merged_data_encoded[columns_to_scale] = scaler.fit_transform(merged_data_encoded[columns_to_scale])
+merged_data_encoded[columns_to_scale].head()
+"""Model Performance After Robust Scaling"""
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win','No_of_Votes'],axis = 1)
+y = merged_data_encoded['win']
+models = [('LogReg', LogisticRegression(solver = 'liblinear')),
+          ('RandomForest',RandomForestClassifier(n_estimators=100)),
+          ('DecTree', DecisionTreeClassifier()),
+          ('KNN', KNeighborsClassifier()),
+          ('SVM', SVC(gamma = 'scale'))]
+models_accuracy_scores(models,X,y)
+"""After dropping the no_of_votes column, the model performances are higher compared to dropping the gross column.Thus,no_of_votes feature will be dropped."""
+merged_data_encoded.drop(columns = 'No_of_Votes',axis = 1,inplace = True)
+
