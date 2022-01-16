@@ -55,8 +55,8 @@ dfa = pd.read_csv('C:\\Users\\serta\\Desktop\\IMDB_kaggle\\imdb_top_1000.csv')
 dfa.head()
 oscar_df = pd.read_csv("C:\\Users\\serta\\Desktop\\my_data\\the_oscar_award.csv")
 oscar_df.head()
-"""There is no column of title type(e.g. movies,tv series) in dfa file.
-Since the target variable in the analysis is whether to win an Oscar or not, we will only extract movies from the file.
+"""There is no column related to title type(e.g. movies,tv series) in dfa file.
+Since the target variable in the analysis is whether to win an Oscar or not, we will extract movies from the file.
 Because only movies are honoured with Oscar award.Therefore, title.basics.tsv.gz will be downloaded from IMDb database to get the 
 title types of dfa"""
 #getting list of name of the movies of dfa file
@@ -69,9 +69,9 @@ df_movies = df[df['titleType']=='movie']
 df_movies.head()
 df_movies = df_movies[df_movies['originalTitle'].isin(titles)].drop_duplicates(subset = 'originalTitle' )
 #df_movies
-#getting list of name of the movies of df file
+#getting list of name of the movies of df_movies file
 titles_movies = [x for x in df_movies['originalTitle']]
-#extracting movies from dfa file
+#extracting title type of movies from dfa file
 dfa = dfa[dfa['Series_Title'].isin(titles_movies)]
 dfa.info()
 
@@ -79,7 +79,7 @@ dfa.info()
 """extracting Oscar awarded movies"""
 oscar_winner_df = oscar_df[oscar_df['winner'] == True]
 df = oscar_winner_df[['year_ceremony', 'film', 'winner']]
-"""Changing the names of the columns"""
+"""Changing the names of the columns of df"""
 df.columns = ['Ceremony Year', 'Series_Title', 'win']
 """sorting according to series title"""
 df.sort_values('Series_Title').head()
@@ -96,26 +96,26 @@ merged_data.head()
 """DATATYPE MANIPULATION"""
 """Getting information of missing values and datatypes"""
 merged_data.info()
-"""filling missing win values with false because they are not awarded"""
+"""filling missing win values with false because not awarded movies are null"""
 merged_data['win'].fillna('False', inplace=True)
-merged_data.head(1)
+merged_data.head()
 """getting insight of duplicated rows"""
 merged_data[merged_data.duplicated()].head()
 """dropping duplicates"""
 merged_data.drop_duplicates(inplace=True)
 merged_data.dropna(subset=['Poster_Link'], inplace=True)
 merged_data[merged_data['Ceremony Year'].isnull()].head(10)
-"""data is missing since the movies were not awarded so there was no ceremony."""
+"""#There is no ceremony for not awarded movies so there rows are null."""
 """filling nan with 1900 ,it is a random year which I pick because there was no Oscar awards in that years"""
 merged_data['Ceremony Year'].fillna(1900, inplace=True)
 merged_data.info()
-"""Replacing 'minutes' and changing datatype from object to float"""
+"""Removing 'minutes' and changing datatype from object to float, 0 values will be imputed later"""
 merged_data['Runtime'] = [int(str(i).replace("min", "")) for i in merged_data['Runtime']]
 """filling nan values with 0 to be able to change the datatype from object to integer"""
 merged_data['Gross'] = merged_data['Gross'].fillna(0)
-merged_data['Gross'] = [int(str(i).replace(",", "")) for i in merged_data['Gross']]
+merged_data['Gross'] = [float(str(i).replace(",", "")) for i in merged_data['Gross']]
 numerical_attributes = ['Ceremony Year', 'Runtime', 'No_of_Votes']
-"""there is no day or month on ceremony year column so instead of date format,it will be changed to integer,it will bw dropped later"""
+"""there is no day or month on ceremony year column so instead of date format,it will be changed to integer,it will be dropped later"""
 merged_data[numerical_attributes] = merged_data[numerical_attributes].astype('int64')
 merged_data['Gross'] = merged_data['Gross'].astype('float64')
 """writing list comprehension for win column instead of for loop which is more declarative and shorter"""
@@ -129,7 +129,7 @@ print(merged_data[merged_data['Released_Year'] == 'PG'])
 merged_data['Released_Year'] = merged_data['Released_Year'].str.replace('PG', '1995')
 """Changing datatype from object to datetime"""
 merged_data['Released_Year'] = pd.to_datetime(merged_data['Released_Year'])
-"""Creating new column by taking year values"""
+"""Creating new column by taking year values as integers to be able to  analyze relation between ceremony year and released year"""
 merged_data['Year_of_release'] = merged_data['Released_Year'].dt.year
 merged_data['Year_of_release'].head(1)
 """dropping the released year column"""
@@ -467,47 +467,17 @@ merged_data['Star4'].unique()
 merged_data['Series_Title'].unique()
 
 """EXPLORATORY ANALYSIS"""
-
-"""Question1; Who are the director's of 5 movies with highest gross values  and what are the genres of these films?"""
-#getting rows including  first 5 highest gross values
-merged_data_gross_max = merged_data.sort_values(by = 'Gross', ascending=False).head()
-#merged_data_gross_max
-"""Plotting stripplot"""
-sns.stripplot(x = 'Director',y = 'Gross',hue = 'Genre',data = merged_data_gross_max)
-plt.xticks(rotation=40)
-plt.title('The directors and genres of the top 5 highest-grossing films')
+#plotting pairwise relationship between numerical variables
+sns.pairplot(data = merged_data,hue = 'win',hue_order = [0,1],vars = ['Gross','IMDB_Rating','Meta_score','Gross','No_of_Votes'] )
 plt.show()
-
-"""Question 2 = Who are the leading actors of the films with the highest 5 imdb points that are Oscar awarded and 
-what is the certificate of these films?"""
-"""extracting oscar awarded movies"""
-awarded = merged_data[merged_data['win']== 1]
-awarded = awarded.sort_values(by= 'IMDB_Rating',ascending = False).head()
-#awarded
-sns.stripplot(x = 'Certificate',y = 'Star1',hue = 'Series_Title',data = awarded)
-plt.title('The leading actors and certificates of the movies with the highest top 5 imdb scores')
-plt.show()
-
-"""Question 3 : Which words were used mostly in the overview of the top 50 movies with highest number of votes which are Oscar awarded? """
-
-awarded = merged_data[merged_data['win']== 1]
-awarded = awarded.sort_values(by= 'No_of_Votes',ascending = False).head(50)
-
-
-def plot_cloud(wordcloud):
-    plt.figure(figsize=(15, 15))
-    plt.imshow(wordcloud)
-
-    plt.axis("off");
-
-
-wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd", random_state=10).generate(
-    ' '.join(awarded['Overview']))
-plot_cloud(wordcloud)
-
-"""Question 4 : According to descriptive statistics,awarded and not awarded datas have almost similar statistical values of imdb scores.
+#pearson correlation coefficient between numerical variables
+merged_data[['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Year_of_release']].corr()
+#descriptive analysis of numerical attributes
+merged_data.groupby('win')[['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Year_of_release']].describe().stack()
+#Determining data balance (according to plot we see that data is not in balance because number of awarded movies are by far bigger than not awarded ones)
+sns.countplot(data = merged_data,x = 'win')
+"""Question 1 - According to descriptive statistics,we can hypothesize that awarded and not awarded datas have almost similar imdb scores.
 Are they really similar or not?"""
-
 #group data by win column
 merged_data.groupby('win')['IMDB_Rating'].describe()
 #oscar awarded data
@@ -518,7 +488,6 @@ not_oscar_awarded_data = merged_data[merged_data['win']==0]
 imdb_oscar = awarded_data['IMDB_Rating']
 #imdb scores of not awarded movies
 imdb_not_oscar = not_oscar_awarded_data['IMDB_Rating']
-"""Write function for plotting cumulative distribution function """
 def ecdf(df):
     """Compute ECDF for a one-dimensional array of measurements."""
     # Number of data points
@@ -531,7 +500,6 @@ def ecdf(df):
     y = np.arange(1, length+1) / length
 
     return x, y
-
 """Plotting ecdf of imdb scores of awarded and not awarded data"""
 x,y = ecdf(imdb_not_oscar)
 x_oscar,y_oscar = ecdf(imdb_oscar)
@@ -542,9 +510,8 @@ plt.legend(loc = 'lower right')
 _ = plt.xlabel('Imdb scores')
 _ = plt.ylabel('ECDF')
 plt.show()
-
-"""According to ecdf results, awarded movies have higher imdb scores.
-Permutation samples of imdb scores will be created to determine if they will overlap with the observed data"""
+"""According to ecdf results,  awarded movies have higher imdb scores.
+Permutation samples of imdb scores will be created to investigate if they will overlap with the observed data"""
 """Creating permutation samples for 50 times"""
 for _ in range(50):
     # Concatenate two datasets
@@ -578,29 +545,14 @@ plt.margins(0.02)
 _ = plt.xlabel('imdb')
 _ = plt.ylabel('ECDF')
 plt.legend(loc='lower right')
-plt.title('ECDF of imdb scores awarded ,not awarded and permutation samples of concatenated awarded and not awarded movies')
+plt.title(
+    'ECDF of imdb scores awarded ,not awarded and permutation samples of concatenated awarded and not awarded movies')
 plt.show()
 
 """According to graphic, we can see that none of permutation samples overlap on observed data ,they remain between ecdf line of awarded
 and not awarded data ,which shows that imdb scores aren't identically distributed between awarded and not awarded data"""
 
-"""Question 5= Who are the leading actors of top 20 movies with highest gross values?"""
-#extracting Oscar awarded movies
-awarded_data = merged_data[merged_data['win']  == 1]
-#extracting leading actor and gross columns
-star1_gross= awarded_data[['Star1','Gross']]
-#grouping data by actors and getting mean of gross
-mean_gross = star1_gross.groupby('Star1').mean()/1000000
-#sorting gross values
-mean_gross = mean_gross.sort_values('Gross', ascending=False)
-#extracting first 20 top gross values
-mean_gross_first_twenty = mean_gross.head(20)
-#visualization
-mean_gross_first_twenty.plot.barh(title = 'Leading actors of the movies with top 20 highest profits ',color = 'c',figsize=(11, 6))
-plt.xlabel('Gross in millions')
-plt.show()
-
-"""Question 6: What is the distribution of genres of awarded movies?"""
+"""Question 2: What is the genre distribution of the award-winning films? """
 from collections import Counter
 
 # Counter is a sub-class to count hashable objects as key: value pairs (as a dictionary)
@@ -632,15 +584,57 @@ awarded_genre = pd.Series(counts_lst)
 sns.countplot(x = awarded_genre)
 plt.xticks(rotation = 50)
 plt.title('Genres of awarded movies')
+"""Question 3 : Which words were used mostly in the overview of the top 50 movies with highest number of votes which are Oscar awarded? """
+awarded = merged_data[merged_data['win']== 1]
+awarded = awarded.sort_values(by= 'No_of_Votes',ascending = False).head(50)
 
-"""PREDICTIVE ANALYSIS"""
+
+def plot_cloud(wordcloud):
+    plt.figure(figsize=(15, 15))
+    plt.imshow(wordcloud)
+
+    plt.axis("off");
+
+
+wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd", random_state=10).generate(
+    ' '.join(awarded['Overview']))
+plot_cloud(wordcloud)
+"""Question4; Who are the director's of 5 movies with highest gross values  and what are the genres of these films?"""
+#getting rows including  first 5 highest gross values
+merged_data_gross_max = merged_data.sort_values(by = 'Gross', ascending=False).head()
+#merged_data_gross_max
+"""Plotting stripplot"""
+sns.stripplot(x = 'Director',y = 'Gross',hue = 'Genre',data = merged_data_gross_max)
+plt.xticks(rotation=40)
+plt.title('The directors and genres of the top 5 highest-grossing films')
+plt.show()
+"""Question 5 = Who are the leading actors of the films with the highest 5 imdb points that are Oscar awarded and 
+what is the certificate of these films?"""
+#extracting Oscar awarded movies
+awarded_data = merged_data[merged_data['win']  == 1]
+#extracting leading actor and gross columns
+star1_gross= awarded_data[['Star1','Gross']]
+#grouping data by actors and getting mean of gross
+mean_gross = star1_gross.groupby('Star1').mean()/1000000
+#sorting gross values
+mean_gross = mean_gross.sort_values('Gross', ascending=False)
+#extracting first 20 top gross values
+mean_gross_first_twenty = mean_gross.head(20)
+mean_gross_first_twenty.plot.barh(title = 'Leading actors of the movies with top 20 highest profits ',color = 'c',figsize=(11, 6))
+plt.xlabel('Gross in millions')
+plt.show()
+
+
+
+""" PREDICTIVE ANALYSIS"""
+
 #changing index as titles of movies
 merged_data = merged_data.set_index('Series_Title')
-#dropping Overview column before encoding
-merged_data.drop(columns = 'Overview',axis =1,inplace = True)
+# dropping columns which will be not used in predictive analysis
+merged_data.drop(columns = ['Overview','Ceremony Year','Poster_Link','Year_of_release'],axis =1,inplace = True)
 
-"""FEATURE ENGINEERING ON CATEGORICAL ATTRIBUTES"""
-"""One-Hot encoding the categorical parameters using get_dummies()"""
+"""One-Hot encoding on categorical features using get_dummies()"""
+
 Genre = merged_data['Genre']
 Genre = Genre.str.get_dummies()
 Certificate = merged_data['Certificate']
@@ -657,14 +651,14 @@ Director = merged_data['Director']
 Director = Director.str.get_dummies()
 merged_data_encoded = pd.concat(
     [merged_data.drop(
-        ['Genre', 'Certificate', 'Poster_Link', 'Star4', 'Director', 'Star1', 'Star2', 'Star3',
-         'Ceremony Year'],
-        axis=1
-    ),Genre, Certificate,Star1, Star2, Star3, Star4, Director],
+        ['Genre', 'Certificate', 'Star4', 'Director', 'Star1', 'Star2', 'Star3'],
+        axis=1 ),
+        Genre, Certificate, Star1, Star2, Star3, Star4, Director],
     axis=1,)
 merged_data_encoded.head()
 
-"""FINDING OUT OUTLIERS"""
+"""Handling Outliers"""
+
 """PLOTTING OUTLIERS"""
 for x in ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross']:
     boxplot = merged_data_encoded.boxplot(column=[x],figsize =(3,3))
@@ -708,9 +702,9 @@ sum_per_outliers(['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross'])
 instead they  will be scaled with robust standardization which uses quartile method for scaling.
 Before scaling correlation between independent variables will be examined."""
 
-"""EXCLUDE HIGHLY CORRELATED FEATURES"""
+"""Determining high correlated features"""
 
-columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'No_of_Votes','Year_of_release','win']
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'No_of_Votes','win']
 cor = merged_data_encoded[columns_to_scale].corr(method = 'pearson')
 plt.figure(figsize = (10,6))
 sns.heatmap(cor, annot = True ,square=True, cmap='RdYlGn',fmt='.4g')
@@ -721,7 +715,8 @@ The correlation between the number of votes and the target variable('win') is sl
  model performance will be evaluated in scaling process by dropping each column separately."""
 
 """SCALE NUMERICAL COLUMNS"""
-"""MODEL ACCURACY BEFORE ROBUST SCALING (AFTER DROPPING GROSS COLUMN)"""
+
+"""Model accuracy before robust scaling (after dropping gross column)"""
 #determining independent and dependent columns for model apply
 X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
 y = merged_data_encoded['win']
@@ -753,7 +748,7 @@ def models_accuracy_scores(model_lst,independent,dependent):
         average_accuracy = round(scores.mean(),3)
         #printing the results
         print('Average accuracy score of',model_name,'is:',average_accuracy)
-"""Getting cross validation accuracy scores with models_accuracy_scores function"""
+"""Getting cross validation accuracy scores with 'models_accuracy_scores' function"""
 #determining independent and dependent columns for model apply
 X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
 y = merged_data_encoded['win']
@@ -763,7 +758,7 @@ models = [('LogReg', LogisticRegression(solver = 'liblinear')),
           ('KNN', KNeighborsClassifier()),
           ('SVM', SVC(gamma = 'scale'))]
 models_accuracy_scores(models,X,y)
-"""ROBUST SCALING"""
+
 """Getting accuracy scores of different quantile ranges"""
 #determining independent and dependent columns for model apply
 X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
@@ -810,7 +805,7 @@ models = [('LogReg', LogisticRegression(solver = 'liblinear')),
           ('KNN', KNeighborsClassifier()),
           ('SVM', SVC(gamma = 'scale'))]
 models_accuracy_scores(models,X,y)
-"""# MODEL ACCURACY BEFORE ROBUST SCALING (AFTER DROPPING NO_OF_VOTES COLUMN)"""
+""" Model accuracy before robust scaling (after dropping no_of_votes column)model accuracy before robust scaling (after dropping no_of_votes column)"""
 #determining independent and dependent columns for model apply
 X = merged_data_encoded.drop(columns = ['win','No_of_Votes'],axis = 1)
 y = merged_data_encoded['win']
@@ -820,17 +815,16 @@ models = [('LogReg', LogisticRegression(solver = 'liblinear')),
           ('KNN', KNeighborsClassifier()),
           ('SVM', SVC(gamma = 'scale'))]
 models_accuracy_scores(models,X,y)
-# ROBUST SCALING
-# Getting accuracy scores of different quantile ranges"""
+
+"""Getting accuracy scores of different quantile ranges"""
+
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.pipeline import Pipeline
-
 # determining independent variables
 columns_to_scale = merged_data_encoded[['Runtime', 'IMDB_Rating', 'Meta_score', 'Gross', 'Year_of_release']]
 # determining target variable
 win = merged_data_encoded['win']
 # looping in quantile ranges
-
 for ranges in ((1.0, 99.0), (2.0, 98.0), (5.0, 95.0), (10.0, 90.0), (15.0, 85.0), (25.0, 75.0)):
     # instaantiate Robust Scaler
     scaler = RobustScaler(with_centering=True,
