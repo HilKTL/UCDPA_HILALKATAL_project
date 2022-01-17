@@ -767,7 +767,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.pipeline import Pipeline
 #determining independent variables
-columns_to_scale  = merged_data_encoded[['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes', 'Year_of_release']]
+columns_to_scale  = merged_data_encoded[['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes']]
 #determining target variable
 win = merged_data_encoded['win']
 #looping through quantile ranges
@@ -787,9 +787,9 @@ for ranges in ((1.0, 99.0),(2.0,98.0),(5.0, 95.0),(10.0, 90.0),(15.0, 85.0),(25.
     #rounding scores numbers to 4 decimal places
     scores = round(np.mean(scores),4)
     print('For quantile range:',ranges,'average score is:',scores)
-"""Since accuracy of (15, 85.0) is the highest,scaling will be done with this range."""
+"""Since accuracy of (2.0, 98.0) is the highest,scaling will be done with this range."""
 """Apply Robust Scale"""
-columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes', 'Year_of_release']
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes']
 scaler = RobustScaler(with_centering=True,
     with_scaling=True,
     quantile_range=(15.0,85.0),copy=True)
@@ -821,7 +821,7 @@ models_accuracy_scores(models,X,y)
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.pipeline import Pipeline
 # determining independent variables
-columns_to_scale = merged_data_encoded[['Runtime', 'IMDB_Rating', 'Meta_score', 'Gross', 'Year_of_release']]
+columns_to_scale = merged_data_encoded[['Runtime', 'IMDB_Rating', 'Meta_score', 'Gross']]
 # determining target variable
 win = merged_data_encoded['win']
 # looping in quantile ranges
@@ -843,7 +843,7 @@ for ranges in ((1.0, 99.0), (2.0, 98.0), (5.0, 95.0), (10.0, 90.0), (15.0, 85.0)
 
     print('For quantile range:', ranges, 'average score is:', scores)
 """Apply Robust Scaler"""
-columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'Year_of_release']
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross']
 scaler = RobustScaler(with_centering=True,
     with_scaling=True,
     quantile_range=(25.0, 75.0),copy=True)
@@ -862,3 +862,198 @@ models_accuracy_scores(models,X,y)
 """After dropping the no_of_votes column, the model performances are higher compared to dropping the gross column.Thus,no_of_votes feature will be dropped."""
 merged_data_encoded.drop(columns = 'No_of_Votes',axis = 1,inplace = True)
 
+"""Feature selection by using SelectFromModel L1-based Svm regularization """
+X = merged_data_encoded.drop(columns = ['win'],axis =1)
+y = merged_data_encoded['win']
+
+from sklearn.svm import LinearSVC
+from sklearn.feature_selection import SelectFromModel
+
+#instantiate svm regularization
+lsvc = LinearSVC(C=0.3 ,penalty="l1", dual=False).fit(X, y)
+#instantiate select from model
+model = SelectFromModel(lsvc, prefit=True)
+#model.get_support()
+X = model.transform(X)
+X.shape
+
+##getting selected_columns
+support = pd.Series(model.get_support())
+column_names = support[support== True].index
+column_names = list(column_names)
+#getting selected column_names
+selected_columns = list(merged_data_encoded.iloc[:,column_names].columns)
+#selected_columns
+
+""" Model accuracy testing after feature selection"""
+models = [('LogReg', LogisticRegression(solver = 'liblinear')),
+          ('RandomForest',RandomForestClassifier(n_estimators=100)),
+          ('DecTree', DecisionTreeClassifier()),
+          ('KNN', KNeighborsClassifier()),
+          ('SVM', SVC(gamma = 'scale'))]
+models_accuracy_scores(models,X,y)
+
+"""6.2 HYPERPARAMETER TUNING OF PREDICTIVE MODELS"""
+"""Writing function for cross validation evaluation of the model performance before hyperparameter tuning"""
+
+
+def cross_val_eval(model, predictor, target):
+    """getting cross validation scores for train and test data with the predictive model"""
+
+    # k-fold cross validation
+    kfold = KFold(n_splits=10, random_state=1, shuffle=True)
+    kfold.get_n_splits(predictor)
+
+    # Instantiate model
+    classifier = model
+    # Instantiate k as 0
+    cnt_of_k = 0
+    # create empty list of k values
+    count_k_lst = []
+    # create empty list to put train scores in it
+    train_score = []
+    # create empty list to put test scores in it
+    test_score = []
+
+    # loop for 10 k folds
+    for train_index, test_index in kfold.split(predictor):
+        # data is an array so it can work on x[value]
+        X_train, X_test = predictor[train_index], predictor[test_index]
+        # y is a dataframe so we have to use "iloc" to retreive data
+        y_train, y_test = target.iloc[train_index], target.iloc[test_index]
+        # fit model
+        classifier.fit(X_train, y_train)
+        # calculating train score
+        train_score_ = classifier.score(X_train, y_train)
+        # calculating test score
+        test_score_ = classifier.score(X_test, y_test)
+        # looping 0 to 10 k
+        cnt_of_k += 1
+        # appending k value to list
+        count_k_lst.append(cnt_of_k)
+        # getting list of train scores
+        train_score.append(train_score_)
+        # getting list of test scores
+        test_score.append(test_score_)
+        print("for k = ", cnt_of_k)
+        print("train_score is :  ", train_score_, "and test score is :  ", test_score_)
+        print("-----------------------------------------------------")
+        # printing average train and test scores
+    print("Average train score is :  ", np.mean(train_score))
+    print("Average test score is :  ", np.mean(test_score))
+
+""""KNeighborsClassifier model"""
+"""1-KNeighbors test and train accuracy with cross validation before hyperparameter tuning"""
+cross_val_eval(KNeighborsClassifier(),X,y)
+"""2-Determining test and train accuracy with varying number of neighbors """""
+# import KNN
+from sklearn.neighbors import KNeighborsClassifier
+# import train-test split
+from sklearn.model_selection import train_test_split
+# arange 1 to 40 neighbors for evaluation of performance for each neighbors
+neighbors = np.arange(1, 40)
+# create arrays to store train and test accuracies
+train_accuracy = np.empty(len(neighbors))
+test_accuracy = np.empty(len(neighbors))
+# splitting data for test and train
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
+# Loop over different values of k
+for i, k in enumerate(neighbors):
+    # Setup a k-NN Classifier with KNeighborsClassifier : knn
+    knn = KNeighborsClassifier(n_neighbors=k)
+    # Fit the classifier to the training data
+    knn.fit(X_train, y_train)
+    # Compute accuracy on the training set
+    train_accuracy[i] = knn.score(X_train, y_train)
+    # Compute accuracy on the testing set
+    test_accuracy[i] = knn.score(X_test, y_test)
+# Generate plot
+plt.title('k-NN: Varying Number of Neighbors')
+plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
+plt.plot(neighbors, train_accuracy, label='Training Accuracy')
+plt.legend()
+plt.xlabel('Number of Neighbors')
+plt.ylabel('Accuracy')
+plt.show()
+
+"""3- Hyperparameter Tuning"""
+from sklearn.metrics import accuracy_score
+from sklearn.model_selection import GridSearchCV
+# Instantiate KNeighborsClassifier()
+knn = KNeighborsClassifier()
+# splitting data for test and train
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+# via gridsearch tuning
+param_grid = {'n_neighbors': [2, 3, 4, 6, 7, 8], 'algorithm': ['ball_tree', 'auto'],
+              'leaf_size': [1, 3, 5, 6, 7, 8, 9, 10, 15, 20, 30]}
+# define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits=4, random_state=0)
+# creating Gridsearch for determining best estimator parameters of knn with 10 fold cross validation
+knn_cv = GridSearchCV(knn, param_grid, cv=cv, scoring='accuracy')
+# fit knn with train data
+knn_cv.fit(X_train, y_train)
+# making predictions with test data
+y_pred = knn_cv.predict(X_test)
+# print best parameters determined by gridsearch
+print("Best parameters are :", knn_cv.best_params_)
+print('Best score is :', knn_cv.best_score_)
+
+"""4- Knn accuracy scores with  tuned hyperparameters """
+from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import accuracy_score
+#Instantiate KNeighborsClassifier()
+knn = KNeighborsClassifier(algorithm ='ball_tree', leaf_size =1, n_neighbors=7)
+#splitting data for test and train
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
+#fit knn with train data
+knn.fit(X_train,y_train)
+#making predictions with test data
+y_pred = knn.predict(X_test)
+#print accuracy
+print("Training accuracy: {}".format(knn.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+
+"""DECISION TREE"""
+"""Decision Tree test and train accuracy with cross validation before hyperparameter tuning"""
+cross_val_eval(DecisionTreeClassifier(),X,y)
+"""Hyperparameter Tuning"""
+# Import necessary modules
+from scipy.stats import randint
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.model_selection import RandomizedSearchCV
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
+# Setup the parameters and distributions
+parameters = {"max_depth": [1,200],
+              "max_features": np.arange(1, 150),
+              "min_samples_leaf": np.arange(1, 200),
+              "criterion": ["gini", "entropy"],
+              "random_state": np.arange(1,1000)}
+#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state =0)
+# Instantiate a Decision Tree classifier dt
+dt = DecisionTreeClassifier()
+# Instantiate the RandomizedSearchCV object
+dt_cv = RandomizedSearchCV(dt,param_distributions= parameters, cv=cv,n_jobs = -1)
+# Fit it to the data
+dt_cv.fit(X_train,y_train)
+# Print the tuned parameters and score
+print("Tuned parameters are : {}".format(dt_cv.best_params_))
+print("Best score of the model is {}".format(dt_cv.best_score_))
+
+"""Decision Tree accuracy scores with tuned hyperparameters"""
+#split data into train-test data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
+
+model = DecisionTreeClassifier(random_state =767,max_depth= 200,min_samples_leaf =52, max_features = 142,criterion= 'gini')
+#fit the model
+model.fit(X_train,y_train)
+#getting predictions
+y_pred = model.predict(X_test)
+#print test and train accuracy
+print("Training accuracy: {}".format(model.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
