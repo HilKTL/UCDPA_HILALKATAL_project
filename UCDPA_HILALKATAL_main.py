@@ -59,9 +59,10 @@ oscar_df.head()
 Since the target variable in the analysis is whether to win an Oscar or not, we will extract movies from the file.
 Because only movies are honoured with Oscar award.Therefore, title.basics.tsv.gz will be downloaded from IMDb database to get the 
 title types of dfa"""
-#getting list of name of the movies of dfa file
-titles = [x for x in dfa['Series_Title']]
+#getting the name of the movies of dfa file with generator expression
+titles = (x for x in dfa['Series_Title'])
 #titles
+
 #Read csv in dataframe
 df = pd.read_csv('C:\\Users\\serta\Downloads\\title.basics.tsv.gz',usecols = ['titleType','originalTitle'],dtype={'titleType':'category','originalTitle':'category'} ,delimiter="\t")
 df['titleType'].unique()
@@ -69,8 +70,8 @@ df_movies = df[df['titleType']=='movie']
 df_movies.head()
 df_movies = df_movies[df_movies['originalTitle'].isin(titles)].drop_duplicates(subset = 'originalTitle' )
 #df_movies
-#getting list of name of the movies of df_movies file
-titles_movies = [x for x in df_movies['originalTitle']]
+#getting the names of the movies of df_movies file with generator expression
+titles_movies = (x for x in df_movies['originalTitle'])
 #extracting title type of movies from dfa file
 dfa = dfa[dfa['Series_Title'].isin(titles_movies)]
 dfa.info()
@@ -100,7 +101,7 @@ merged_data.info()
 merged_data['win'].fillna('False', inplace=True)
 merged_data.head()
 """getting insight of duplicated rows"""
-merged_data[merged_data.duplicated()].head()
+merged_data[merged_data.duplicated(subset = 'Series_Title')].head()
 """dropping duplicates"""
 merged_data.drop_duplicates(inplace=True)
 merged_data.dropna(subset=['Poster_Link'], inplace=True)
@@ -114,6 +115,7 @@ merged_data['Runtime'] = [int(str(i).replace("min", "")) for i in merged_data['R
 """filling nan values with 0 to be able to change the datatype from object to integer"""
 merged_data['Gross'] = merged_data['Gross'].fillna(0)
 merged_data['Gross'] = [float(str(i).replace(",", "")) for i in merged_data['Gross']]
+merged_data['Gross'] = [np.nan if x == 0 else x for x in merged_data['Gross']]
 numerical_attributes = ['Ceremony Year', 'Runtime', 'No_of_Votes']
 """there is no day or month on ceremony year column so instead of date format,it will be changed to integer,it will be dropped later"""
 merged_data[numerical_attributes] = merged_data[numerical_attributes].astype('int64')
@@ -135,7 +137,7 @@ merged_data['Year_of_release'].head(1)
 """dropping the released year column"""
 merged_data.drop('Released_Year', inplace=True, axis=1)
 merged_data.info()
-"""Merged data should have 983 entries(since dfa has 983 rows) but it has 990 so it will be examined :"""
+"""Merged data should have 982 entries(since dfa has 982 rows) but it has 989 so it will be examined :"""
 """extracting duplicated movies on series title"""
 duplicated_titles = merged_data[merged_data.duplicated(subset='Series_Title')]
 print(duplicated_titles)
@@ -147,7 +149,7 @@ duplicated_titles[duplicated_titles['Ceremony Year'] < duplicated_titles['Year_o
 print(merged_data[merged_data['Series_Title'].isin(['Titanic', 'Little Women', 'A Star Is Born', 'Drishyam', 'King Kong', 'Up'])].iloc[:, [1, 15, 16, 17]])
 merged_data[merged_data['Series_Title'] == 'King Kong']
 #duplicated rows and films that are not in imdb movies will be drop from merged data(Oscar+imdb movies data)
-merged_data.drop(index = [35,36,593,676,677,1318,1369],inplace = True)
+merged_data.drop(index = [35,36,593,676,677,1317,1368],inplace = True)
 #Ceremony year of awarded movie cannot be smaller than year.
 #getting information of released year range of Oscar df
 print(oscar_df['year_film'].nsmallest(2),oscar_df['year_film'].nlargest(2))
@@ -169,10 +171,11 @@ import missingno as msno
 msno.matrix(merged_data)
 plt.show()
 """calculating percentage of missing values"""
-def missing_values_percentage(df) :
-    percentage = (df.isna().sum())/len(df.values)*100
-    return percentage
+#calculating percentage of missing values
+def missing_values_percentage(df):
+    return sum(df.isna().sum())/len(df.values)*100
 print(missing_values_percentage(merged_data))
+
 """
 IMPUTATING GROSS COLUMN
 for datatype manipulation ,nan values were imputed with zero before,
@@ -195,7 +198,7 @@ yi = data['Gross']
 # Compute the linear regression
 results = linregress(xi,yi)
 print(results)
-"""According to results,per a vote,gross increases 189.88 points"""
+"""According to results,per a vote,gross increases 184.16 points"""
 #VISUALIZATION BEFORE IMPUTATION
 #Group by numbers of votes
 grouped = merged_data.groupby('No_of_Votes')
@@ -232,7 +235,7 @@ votes_null = merged_data.loc[gross_index_lst]['No_of_Votes']
 #extracting null data
 data_null = merged_data.loc[gross_index_lst]
 #calculating gross values according to intercept and coefficient value of votes
-gross_scores_null = round((5263703.110095441) + ((190.4525132397611)*votes_null))
+gross_scores_null = round((10661783.398254469) + ((184.16528980872417)*votes_null))
 #imputating null gross rows
 merged_data.loc[gross_index_lst,'Gross'] = gross_scores_null
 merged_data.loc[gross_index_lst].head()
@@ -1057,3 +1060,196 @@ print("Training accuracy: {}".format(model.score(X_train, y_train)))
 print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
 #print classification report
 print(classification_report(y_test, y_pred))
+"""LOGISTIC REGRESSION"""
+"""Logistic Regression test and train accuracy with cross validation before hyperparameter tuning"""
+cross_val_eval(LogisticRegression(),X,y)
+"""Hyperparameter Tuning"""
+# Create the classifier: logreg
+
+logreg = LogisticRegression(solver='liblinear')
+
+# Create training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
+
+# Create the hyperparameter grid
+c_space = np.logspace(-3, 3, 5)
+param_grid = {'C': c_space,'penalty': ['l1','l2']}
+
+#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state = 0)
+
+#creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
+
+logreg_cv = GridSearchCV(logreg,param_grid,cv=cv,scoring = 'accuracy')
+
+#fit logr. with train data
+
+logreg_cv.fit(X_train,y_train)
+
+#making predictions with test data
+
+y_pred = logreg_cv.predict(X_test)
+
+#print best parameters determined by gridsearch
+logreg_cv.best_params_
+
+#print accuracy
+print("Accuracy: {}".format(logreg_cv.score(X_test, y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+logreg_cv.best_params_
+"""Logistic Regression accuracy scores with tuned hyperparameters"""
+logreg = LogisticRegression(C = 1000, penalty = 'l2',solver = 'liblinear')
+
+# #split data into train-test data
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
+# Fit it to the training data
+logreg.fit(X_train,y_train)
+#make prediction
+y_pred = logreg.predict(X_test)
+#print accuracy of train and test data
+print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+
+"""SUPPORT VECTOR MACHINE MODEL"""
+"""Support Vector test and train accuracy with cross validation before hyperparameter tuning"""
+cross_val_eval(SVC(),X,y)
+"""Hyperparameter Tuning"""
+from sklearn.svm import SVC
+
+model = SVC()
+# Specify the hyperparameter space
+param_grid = {'C': [0.1,1, 10], 'gamma': [1,0.1,0.001],'kernel' : ('rbf', 'poly', 'sigmoid')}
+
+# Create train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
+
+#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state = 0)
+
+# Instantiate the GridSearchCV object
+search = GridSearchCV(model,param_grid = param_grid,cv=cv)
+
+# Fit to the training set
+search.fit(X_train,y_train)
+
+# Predictions of the test set
+y_pred = search.predict(X_test)
+
+# print accuracy and classification report
+print("Accuracy: {}".format(search.score(X_test, y_test)))
+print(classification_report(y_test, y_pred))
+#getting best parameters
+print("Tuned Model Parameters: {}".format(search.best_params_))
+"""SVM accuracy scores with tuned hyperparameters"""
+model = SVC(C = 10, gamma = 0.1)
+#train,test splitting data as train and test with size of 80/20
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
+#fit model
+model.fit(X_train,y_train)
+#make predictions
+y_pred = model.predict(X_test)
+#getting accuracy results for test and train data
+print("Training accuracy: {}".format(model.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+"""RANDOM FOREST CLASSIFIER"""
+cross_val_eval(RandomForestClassifier(),X,y)
+"""Hyperparameter Tuning"""
+model = RandomForestClassifier()
+
+
+# Specify the hyperparameter space
+parameters = {'bootstrap': [True, False],
+ 'max_depth': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, None],
+ 'max_features': ['auto', 'sqrt'],
+ 'min_samples_leaf': [1, 2, 4],
+ 'min_samples_split': [2, 5, 10,20],
+ 'n_estimators': [10, 20, 40, 50, 100, 200, 250]}
+
+# Create train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
+
+#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits = 3,n_repeats = 3,random_state = 1)
+
+# Instantiate the GridSearchCV object
+search = RandomizedSearchCV(model,param_distributions = parameters,cv=cv)
+
+# Fit to the training set
+search.fit(X_train,y_train)
+
+# Prediction of test data
+y_pred = search.predict(X_test)
+
+#printing  accuracy and confusion matrix
+print("Accuracy: {}".format(search.score(X_test, y_test)))
+print(classification_report(y_test, y_pred))
+#getting best paramaters
+print("Tuned Model Parameters: {}".format(search.best_params_))
+"""Random Forest accuracy scores with tuned hyperparameters"""
+model = RandomForestClassifier(n_estimators= 250, min_samples_split= 5, min_samples_leaf= 1, max_features='auto', max_depth=90, bootstrap= False)
+
+#splitting data in test and train data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
+#fitting model
+model.fit(X_train,y_train)
+#getting predictions from test data
+y_pred = model.predict(X_test)
+print("Training accuracy: {}".format(model.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+""" Gradient Boosting classifier"""
+"""Gradient Boosting classifier test and train accuracy with cross validation before hyperparameter tuning"""
+from sklearn.ensemble import GradientBoostingClassifier
+cross_val_eval(GradientBoostingClassifier(),X,y)
+"""Hyperparameter Tuning"""
+from sklearn.ensemble import GradientBoostingClassifier
+
+model = GradientBoostingClassifier()
+# Specify the hyperparameter space
+parameters = {'max_depth': [3,5,8,10, None],
+ 'min_samples_leaf': [1, 2, 4,8],
+ 'min_samples_split': [2,4,5],
+ 'n_estimators': [50, 100, 200]}
+
+# Create train and test sets
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
+
+#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state = 1)
+
+# Instantiate the GridSearchCV object
+search = RandomizedSearchCV(model,param_distributions = parameters,cv=cv,random_state = 0)
+
+# Fit to the training set
+search.fit(X_train,y_train)
+
+# Predict the labels of the test set: y_pred
+y_pred = search.predict(X_test)
+
+# Compute and print metrics
+print("Accuracy: {}".format(search.score(X_test, y_test)))
+print(classification_report(y_test, y_pred))
+print("Tuned Model Parameters: {}".format(search.best_params_))
+"""Gradient Boosting classifier accuracy scores with tuned hyperparameters"""
+# Import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier
+# Instantiate gb
+gb = GradientBoostingClassifier(n_estimators = 100,min_samples_split = 5,min_samples_leaf = 1,max_depth = 3,random_state=1)
+# Fit gb to the training set
+gb.fit(X_train,y_train)
+
+# Predict test set labels
+y_pred = gb.predict(X_test)
+# Calculate accuracy score
+accuracy = accuracy_score(y_test, y_pred)
+print('GB: {:.3f}'.format(accuracy))
+#confusion matrix results
+conf_mat = confusion_matrix(y_test,y_pred)
+print(conf_mat)
+
