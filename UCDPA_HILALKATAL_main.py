@@ -1,24 +1,26 @@
 """Importing necessary dictionaries"""
 from wordcloud import WordCloud
 import datetime as dt
-from functools import reduce
+import requests
+import pandas as pd
+import missingno as msno
 import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+import re
 from scipy.stats import linregress
+from statistics import mean
 from sklearn.model_selection import RepeatedStratifiedKFold
-import statsmodels.formula.api as smf
+from sklearn.preprocessing import RobustScaler
+from sklearn.pipeline import Pipeline
 import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import classification_report
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn import model_selection
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import KFold
-# Import the necessary modules
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score,classification_report
 
 """DATA EXTRACTION - WEB SCRAPING"""
 
@@ -182,6 +184,17 @@ for datatype manipulation ,nan values were imputed with zero before,
 now these 0 values will be imputed after having descriptive statistical values of the gross column
 """
 merged_data['Gross'].describe()
+#Distribution of non null gross values
+#Distribution of non null gross values
+not_null_gross = merged_data[~merged_data['Gross'].isnull()]['Gross']
+#plotting hisplot and assign bin numbers to square root of the entries
+import seaborn as sns
+bins = round(merged_data.shape[0]**0.5)
+sns.histplot(not_null_gross,kde = True,bins = bins)
+plt.xlabel('Gross')
+title = print('Distribution of Gross')
+plt.title(title)
+plt.show()
 #Finding out the correlation between gross column and other numerical columns
 columns = ['IMDB_Rating','Meta_score','No_of_Votes','Gross']
 subset = merged_data[columns]
@@ -224,8 +237,8 @@ plt.xlabel('No_of_Votes')
 plt.ylabel('Gross')
 plt.show()
 """IMPUTATION ACCORDING TO LINEAR REGRESSION RESULTS"""
-#getting index number of null gross rows(for datatype manipulation null values were imputed with 0 (zero) before)
-gross_null = merged_data[merged_data['Gross']== 0]
+#getting index number of null gross rows
+gross_null = merged_data[merged_data['Gross'].isnull()]['Gross']
 #creating list of index numbers
 gross_index_lst = gross_null.index
 #extracting null values of gross
@@ -234,7 +247,7 @@ gross_scores_null = merged_data.loc[gross_index_lst]['Gross']
 votes_null = merged_data.loc[gross_index_lst]['No_of_Votes']
 #extracting null data
 data_null = merged_data.loc[gross_index_lst]
-#calculating gross values according to intercept and coefficient value of votes
+#calculating gross values according to intercept and slope
 gross_scores_null = round((10661783.398254469) + ((184.16528980872417)*votes_null))
 #imputating null gross rows
 merged_data.loc[gross_index_lst,'Gross'] = gross_scores_null
@@ -269,107 +282,187 @@ def certificate_imp(reg):
     # print(list(x.keys())[0])
     result = list(x.keys())[0]
     return result
+#genre numbers of null certificate rows
 merged_data[merged_data['Certificate'].isnull()]['Genre'].value_counts()
-mask1 = merged_data['Genre'].str.contains(r"^Drama(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"^Drama(?!,)")
-# negative loohahead assertion
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, War)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, War)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, Romance)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama, Romance)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Action, Crime, Drama)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Action, Crime, Drama)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama|Thriller)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama|Thriller)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Romance)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Romance)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Romance)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Romance)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Mystery, Thriller)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Mystery, Thriller)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Film-Noir)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama, Film-Noir)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Mystery)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama, Mystery)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Biography, Drama, History)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Biography, Drama, History)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Adventure, Drama, Western)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Adventure, Drama, Western(?!,))")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, War)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama, War)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Music, Romance)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Music, Romance)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Action, Adventure, Drama)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Action, Adventure, Drama)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Film-Noir)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Film-Noir)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, History)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, History)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Horror)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Horror)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Romance)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Crime, Drama, Romance)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Drama, Family)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Drama, Family)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Horror, Sci-Fi)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Horror, Sci-Fi)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Horror)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Horror)")
-mask1 = merged_data['Genre'].str.contains(r"(Adventure, Comedy)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Adventure, Comedy)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Animation, Adventure, Family)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Animation, Adventure, Family)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Music, Musical)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Comedy, Music, Musical)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Sci-Fi)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Sci-Fi)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Fantasy, Mystery)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Sci-Fi)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Western)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Drama, Western)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, Crime)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(^Comedy, Crime)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Family)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Family)")
-mask1 = merged_data['Genre'].str.contains(r"(Crime, Drama, Fantasy)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Crime, Drama, Fantasy)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Comedy, War)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Comedy, War)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Fantasy)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Fantasy)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Romance, War)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Romance, War)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Action, Drama, Mystery)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Action, Drama, Mystery)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Action, Adventure, War)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Action, Adventure, War)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Drama, Film-Noir, Mystery)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Drama, Film-Noir, Mystery)(?!,)")
-mask1 = merged_data['Genre'].str.contains(r"(Film-Noir, Mystery)(?!,)")
-merged_data.loc[mask1 & mask2, 'Certificate'] = certificate_imp(r"(Film-Noir, Mystery)(?!,)")
-"""These rows throw 'out of range' error while imputing with certificate_imp function, so I will call them"""
+#extracting only drama genres without any genre (negative loohahead assertion)
+mask1 =merged_data['Genre'].str.contains(r"^Drama(?!,)")
+#visualize drama films
+merged_data[mask1].head()
+#certificate imputation according to genre
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"^Drama(?!,)")
+#(?!,) ---> negative loohahead assertion (), '^' ----> Starts with
+mask1 =merged_data['Genre'].str.contains(r"(^Comedy, Drama$)")
+# ^ (begins with), $ (ends with)
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Comedy, Drama$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, War$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, War$)")
+mask1 =merged_data['Genre'].str.contains(r"(Comedy, Drama, Romance)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Comedy, Drama, Romance)")
+mask1 =merged_data['Genre'].str.contains(r"(Action, Crime, Drama)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Action, Crime, Drama)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Thriller$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, Thriller$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Romance$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, Romance$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Comedy, Romance$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Comedy, Romance$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Mystery, Thriller$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Mystery, Thriller$)")
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Drama, Film-Noir)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Crime, Drama, Film-Noir)")
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Drama, Mystery)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Crime, Drama, Mystery)")
+mask1 =merged_data['Genre'].str.contains(r"(Biography, Drama, History)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Biography, Drama, History)")
+mask1 =merged_data['Genre'].str.contains(r"(Comedy, Drama, War)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Comedy, Drama, War)")
+mask1 =merged_data['Genre'].str.contains(r"(^Crime, Drama$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Crime, Drama$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Music, Romance)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, Music, Romance)")
+mask1 =merged_data['Genre'].str.contains(r"(Action, Adventure, Drama)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Action, Adventure, Drama)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, History$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, History$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Horror$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, Horror$)")
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Drama, Romance)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Crime, Drama, Romance)")
+mask1 =merged_data['Genre'].str.contains(r"(Action, Crime, Thriller)(?!,)")
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Action, Crime, Thriller)")
+mask1 =merged_data['Genre'].str.contains(r"(Drama, Horror, Sci-Fi)(?!,)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Drama, Horror, Sci-Fi)")
+mask1 =merged_data['Genre'].str.contains(r"(^Horror, Thriller$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Horror, Thriller$)")
+mask1 =merged_data['Genre'].str.contains(r"(Adventure, Comedy, Sci-Fi)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Adventure, Comedy, Sci-Fi)")
+mask1 =merged_data['Genre'].str.contains(r"(Animation, Adventure, Family)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Animation, Adventure, Family)")
+mask1 =merged_data['Genre'].str.contains(r"(Comedy, Music, Musical)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Comedy, Music, Musical)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Sci-Fi$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, Sci-Fi$)")
+mask1 =merged_data['Genre'].str.contains(r"(Drama, Fantasy, Mystery)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Drama, Fantasy, Mystery)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Western$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Drama, Western$)")
+mask1 =merged_data['Genre'].str.contains(r"(^Comedy, Crime$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Comedy, Crime$)")
+mask1 =merged_data['Genre'].str.contains(r"(Family)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Family)")
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Drama, Fantasy)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Crime, Drama, Fantasy)")
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Fantasy$)")
+merged_data[mask1].head()
+# 1 row
+mask1 =merged_data['Genre'].str.contains(r"(Action, Drama, Mystery)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Action, Drama, Mystery)")
+mask1 =merged_data['Genre'].str.contains(r"(Action, Adventure, War)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Action, Adventure, War)")
+mask1 =merged_data['Genre'].str.contains(r"(Film-Noir, Mystery)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Film-Noir, Mystery)")
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Drama, Thriller)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Film-Noir, Mystery)")
+mask1 =merged_data['Genre'].str.contains(r"(Action, Drama, Thriller)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Action, Drama, Thriller)")
+mask1 =merged_data['Genre'].str.contains(r"(^Crime, Thriller$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Crime, Thriller$)")
+mask1 =merged_data['Genre'].str.contains(r"(Action, Adventure, Biography)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(Action, Adventure, Crime)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(Comedy, Musical, War)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(Action, Crime, Comedy)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(^Drama, Fantasy$)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Mystery, Thriller)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Crime, Mystery, Thriller)")
+mask1 =merged_data['Genre'].str.contains(r"(Crime, Drama, Horror)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(^Thriller$)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(^Adventure, Drama$)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(^Adventure, Drama$)")
+mask1 =merged_data['Genre'].str.contains(r"(Drama, Horror, Thriller)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(Action, Adventure, Biography)")
+#there is only one row
+merged_data[mask1].head()
+mask1 =merged_data['Genre'].str.contains(r"(Comedy, Crime, Thriller)")
+merged_data[mask1].head()
+#there is only one row
+mask1 =merged_data['Genre'].str.contains(r"(Drama, Horror, Thriller)")
+merged_data[mask1].head()
+merged_data.loc[mask1&mask2,'Certificate'] = certificate_imp(r"(Drama, Horror, Thriller)")
+merged_data[merged_data['Certificate'].isnull()]
+"""Calling certificate values that cannot be imputed because there is only one genre of it"""
 merged_data[merged_data['Certificate'].isnull()]['Genre'].value_counts()
-merged_data[merged_data['Genre'].isin(['Action, Adventure, Biography','Action, Adventure, Crime','Comedy, Musical, War','Action, Crime, Comedy','Film-Noir, Mystery'])]
-"""Since there are no genres similar to these ones in our data, these nan 
-certificate columns will be imputed with approppriate value after searching on 'https://www.imdb.com/' """
-"""Imputing  movies' certificate"""
-merged_data.loc[[49,241],'Certificate'] = 'A'
+merged_data[merged_data['Genre'].isin(["Action, Adventure, Biography","Comedy, Crime, Thriller","Action, Adventure, Crime","Comedy, Musical, War","Drama, Fantasy","Action, Crime, Comedy","Crime, Drama, Horror","Thriller"])]
+#Since there are no genres similar to these ones in our data, these nan certificate columns will be
+# imputed after searching for approppriate value via internet."""
+"""Imputing  null movies' certificate"""
+merged_data.loc[[49,109,351,659,1384],'Certificate'] = 'Unrated'
+merged_data.loc[241,'Certificate'] = 'A'
 merged_data.loc[336,'Certificate'] = 'U'
 merged_data.loc[601,'Certificate'] = 'TV-14'
-merged_data.loc[1214,'Certificate'] = 'PG'
-merged_data.loc[[49,241,336,601,1214]]
+merged_data.loc[[49,109,241,336,351,601,659,1384]]
 merged_data['Certificate'].isnull().sum()
 merged_data.info()
 merged_data['Certificate'].value_counts()
-"""Creating certificate groups by mapping"""
-mapping = {'G': 'All_ages_group','U' : 'All_ages_group' , 'PG':'All ages(kids with PG)','TV-PG':'All ages(kids with PG)','UA':'All ages(kids with PG)','U/A':'All ages(kids with PG)','GP':'All ages(kids with PG)','Passed' : 'All ages(kids with PG)','PG-13' : 'Teens', 'TV-14': 'Teens','16' : 'Teens','R' : 'Adult' ,'TV-MA' : 'Adult','A' : 'Adult'}
+#Creating certificate groups by mapping
+mapping = {'G': 'All_ages_group','U' : 'All_ages_group' , 'PG':'All ages(kids with PG)','TV-PG':'All ages(kids with PG)',
+           'UA':'All ages(kids with PG)','U/A':'All ages(kids with PG)','GP':'All ages(kids with PG)',
+           'Passed' : 'All ages(kids with PG)','PG-13' : 'Teens', 'TV-14': 'Teens','16' : 'Teens','R' : 'Adult' ,'TV-MA' : 'Adult','A' : 'Adult'}
 merged_data['Certificate']= merged_data['Certificate'].replace(mapping)
-merged_data['Certificate']=merged_data['Certificate'].replace(mapping)
 merged_data['Certificate'].value_counts()
+merged_data['Certificate'].isnull().sum()
 """IMPUTATION OF METASCORE COLUMN"""
 len(merged_data[merged_data['Meta_score'].isnull()])
 merged_data['Meta_score'].describe()
@@ -400,7 +493,7 @@ yi = data['Meta_score']
 """Compute the linear regression"""
 results = linregress(xi, yi)
 print(results)
-"""according to results it means that metascores increases 11.71 points per 1 point of imdb scores"""
+"""according to results it means that metascores increases 12 points per 1 point of imdb scores"""
 """Plotting best fit line on the data points of metascores and imdb scores"""
 """Scatterplot of imdb scores and metascores"""
 plt.plot(xi, yi, 'o', alpha=0.1)
@@ -417,7 +510,7 @@ plt.title('Linear equation between metascore and imdb scores')
 plt.show()
 """IMPUTATION ACCORDING TO LINEAR REGRESSION RESULTS"""
 """getting index number of null metascores rows"""
-metascore_null = merged_data[merged_data['Meta_score'].isnull()]
+metascore_null = merged_data[merged_data['Meta_score'].isnull()]['Meta_score']
 """creating list of index numbers"""
 metascore_index_lst = metascore_null.index
 """extracting null values of metascores"""
@@ -427,7 +520,8 @@ imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
 #calculating metascores values according to intercept and coefficient value of imdb scores
-meta_scores_null = round((-16.90239877564008) + ((11.960092936857253)*imdb_rating_null))
+#calculating metascores values according to intercept and coefficient value of imdb scores
+meta_scores_null = round((-17.269931628675778) + ((12.005067620755545)*imdb_rating_null))
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -445,17 +539,23 @@ plt.show()
 columns = ['IMDB_Rating','Meta_score']
 subset = merged_data[columns]
 subset.corr()
-
 """DISTRUBUTION OF NUMERICAL ATTIBUTES"""
 """PLOTTING DISTRIBUTION"""
+#impoting seaborn library
 import seaborn as sns
 numerical_columns = ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross','Year_of_release']
+plt.figure(figsize=(10,10),facecolor='white')
+plot_number = 1
 for x in numerical_columns:
-    sns.histplot(merged_data[x],kde = True,bins = len(merged_data[x].unique()))
-    plt.xlabel(x)
-    title = print('Distribution of',x)
-    plt.title(title)
-    plt.show()
+    if plot_number < 7 :
+        #fitting graphs as two rows and 3 columns
+        ax = plt.subplot(2,3,plot_number)
+        sns.histplot(merged_data[x],kde = True,bins = round(merged_data.shape[0]**0.5))
+        plt.xlabel(x)
+        title = print('Distribution of',x)
+        plt.title(title)
+        plot_number +=1
+plt.show()
 merged_data['Gross'].nsmallest()
 """Descriptive analytics"""
 merged_data[numerical_columns].describe()
@@ -563,7 +663,6 @@ from collections import Counter
 dtseries = awarded_data["Genre"]
 # print(dtseries)
 
-
 # creating empty list to collect genres
 counts_lst = []
 for entry in dtseries:
@@ -598,8 +697,7 @@ def plot_cloud(wordcloud):
 
     plt.axis("off");
 
-
-wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd", random_state=10).generate(
+wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd").generate(
     ' '.join(awarded['Overview']))
 plot_cloud(wordcloud)
 """Question4; Who are the director's of 5 movies with highest gross values  and what are the genres of these films?"""
@@ -607,7 +705,7 @@ plot_cloud(wordcloud)
 merged_data_gross_max = merged_data.sort_values(by = 'Gross', ascending=False).head()
 #merged_data_gross_max
 """Plotting stripplot"""
-sns.stripplot(x = 'Director',y = 'Gross',hue = 'Genre',data = merged_data_gross_max)
+sns.stripplot(x = 'Director',y = 'Gross',hue = 'Series_Title',data = merged_data_gross_max)
 plt.xticks(rotation=40)
 plt.title('The directors and genres of the top 5 highest-grossing films')
 plt.show()
@@ -626,8 +724,6 @@ mean_gross_first_twenty = mean_gross.head(20)
 mean_gross_first_twenty.plot.barh(title = 'Leading actors of the movies with top 20 highest profits ',color = 'c',figsize=(11, 6))
 plt.xlabel('Gross in millions')
 plt.show()
-
-
 
 """ PREDICTIVE ANALYSIS"""
 
@@ -701,125 +797,73 @@ def sum_per_outliers(lst):
 #total percentage of outliers of all numerical columns
 sum_per_outliers(['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross'])
 
-"""Since the amount of outliers are  25.15% percent of the data ,outliers will not be removed,
-instead they  will be scaled with robust standardization which uses quartile method for scaling.
-Before scaling correlation between independent variables will be examined."""
+#Since the amount of outliers are  25.15% percent of the data ,outliers will not be removed,
+#instead they  will be scaled with robust standardization which uses quartile method for scaling.
+#Before scaling correlation between independent variables will be examined.
 
-"""Determining high correlated features"""
+#Determining high correlated features
 
 columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'No_of_Votes','win']
 cor = merged_data_encoded[columns_to_scale].corr(method = 'pearson')
 plt.figure(figsize = (10,6))
 sns.heatmap(cor, annot = True ,square=True, cmap='RdYlGn',fmt='.4g')
+#The number of votes has high correlation with gross and IMDB column.It will be dropped.
+merged_data_encoded.drop(columns = 'No_of_Votes',axis = 1,inplace = True)
 
-"""The number of votes has high correlation with gross and IMDB column. 
-The correlation between the number of votes and the target variable('win') is slightly higher than the correlation between  win and gross earnings.
- On the other hand, the number of votes column has high correlation with imdb scores. For this reason,
- model performance will be evaluated in scaling process by dropping each column separately."""
+#SCALE NUMERICAL COLUMNS
 
-"""SCALE NUMERICAL COLUMNS"""
-
-"""Model accuracy before robust scaling (after dropping gross column)"""
+#Model accuracy before robust scaling (after dropping no_of_votes column)model accuracy before robust scaling (after dropping no_of_votes column)
 #determining independent and dependent columns for model apply
-X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
+X = merged_data_encoded.drop(columns = ['win'],axis = 1)
 y = merged_data_encoded['win']
-X.head(2)
-"""Defining cross validation model accuracy function"""
-# importing classification models
+
+#Defining cross validation model accuracy function
 from sklearn import model_selection
 from sklearn. linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.svm import SVC
-import warnings
-warnings.filterwarnings("ignore", category=DeprecationWarning)
-def models_accuracy_scores(model_lst,independent,dependent):
-    #creating empty list for model names
-    model_names = []
-    #determining predictive models for classification
-    models = model_lst
-    #looping for each model
-    for model_name, model in models:
-        #create crossvalidation with 10 splits and 10 repeats with RepeatedstratifiedKfold
-        cv = RepeatedStratifiedKFold(n_splits=10, random_state=1)
-        #getting validation scores(scoring is accuracy because dependent variable is binary and classification analysis will be applied)
-        scores = model_selection.cross_val_score(model, independent, dependent, cv=cv, scoring='accuracy')
-        #getting model names for printing
-        model_names.append(model_name)
-        #rounding average score to 3 decimal places
-        average_accuracy = round(scores.mean(),3)
-        #printing the results
-        print('Average accuracy score of',model_name,'is:',average_accuracy)
-"""Getting cross validation accuracy scores with 'models_accuracy_scores' function"""
-#determining independent and dependent columns for model apply
-X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
-y = merged_data_encoded['win']
-models = [('LogReg', LogisticRegression(solver = 'liblinear')),
-          ('RandomForest',RandomForestClassifier(n_estimators=100)),
-          ('DecTree', DecisionTreeClassifier()),
-          ('KNN', KNeighborsClassifier()),
-          ('SVM', SVC(gamma = 'scale'))]
-models_accuracy_scores(models,X,y)
+def models_accuracy_scores(model,independent,dependent):
+    model = model
+    #create crossvalidation with 10 splits and 10 repeats with RepeatedstratifiedKfold
+    cv = RepeatedStratifiedKFold(n_splits=10, random_state=0)
+    #getting validation scores(scoring is accuracy because dependent variable is binary and classification analysis will be applied)
+    scores = model_selection.cross_val_score(model, independent, dependent, cv=cv, scoring='accuracy')
+    #rounding average score to 3 decimal places
+    average_accuracy = round(scores.mean(),3)
+    #printing the results
+    print('Average accuracy score of',model,'is:',average_accuracy)
+#Defining roc_curve plotting function
+from sklearn. linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score
 
-"""Getting accuracy scores of different quantile ranges"""
-#determining independent and dependent columns for model apply
-X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
-y = merged_data_encoded['win']
-from sklearn.preprocessing import RobustScaler
-from sklearn.model_selection import RepeatedStratifiedKFold
-from sklearn.pipeline import Pipeline
-#determining independent variables
-columns_to_scale  = merged_data_encoded[['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes']]
-#determining target variable
-win = merged_data_encoded['win']
-#looping through quantile ranges
-for ranges in ((1.0, 99.0),(2.0,98.0),(5.0, 95.0),(10.0, 90.0),(15.0, 85.0),(25.0, 75.0)):
-    #instantiate scaler
-    scaler = RobustScaler(with_centering=True,
-    with_scaling=True,
-    quantile_range= ranges,copy=True)
-    #instantiate model
-    model =KNeighborsClassifier()
-    #instantiate pipeline for two steps(first scaling will be done,then model fitting)
-    pipeline = Pipeline(steps=[('scaler', scaler), ('model', model)])
-    ##instantiate cross validation
-    cv = RepeatedStratifiedKFold(n_splits=10, n_repeats=3, random_state=1)
-    #getting cross validation scores
-    scores = cross_val_score(pipeline, columns_to_scale, win, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
-    #rounding scores numbers to 4 decimal places
-    scores = round(np.mean(scores),4)
-    print('For quantile range:',ranges,'average score is:',scores)
-"""Since accuracy of (2.0, 98.0) is the highest,scaling will be done with this range."""
-"""Apply Robust Scale"""
-columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'No_of_Votes']
-scaler = RobustScaler(with_centering=True,
-    with_scaling=True,
-    quantile_range=(15.0,85.0),copy=True)
-merged_data_encoded[columns_to_scale] =scaler.fit_transform(merged_data_encoded[columns_to_scale])
-merged_data_encoded[columns_to_scale].head()
-"""Model accuracy testing after robust scaling"""
-#determining independent and dependent columns for model apply
-X = merged_data_encoded.drop(columns = ['win','Gross'],axis = 1)
-y = merged_data_encoded['win']
-models = [('LogReg', LogisticRegression(solver = 'liblinear')),
-          ('RandomForest',RandomForestClassifier(n_estimators=100)),
-          ('DecTree', DecisionTreeClassifier()),
-          ('KNN', KNeighborsClassifier()),
-          ('SVM', SVC(gamma = 'scale'))]
-models_accuracy_scores(models,X,y)
-""" Model accuracy before robust scaling (after dropping no_of_votes column)model accuracy before robust scaling (after dropping no_of_votes column)"""
-#determining independent and dependent columns for model apply
-X = merged_data_encoded.drop(columns = ['win','No_of_Votes'],axis = 1)
-y = merged_data_encoded['win']
-models = [('LogReg', LogisticRegression(solver = 'liblinear')),
-          ('RandomForest',RandomForestClassifier(n_estimators=100)),
-          ('DecTree', DecisionTreeClassifier()),
-          ('KNN', KNeighborsClassifier()),
-          ('SVM', SVC(gamma = 'scale'))]
-models_accuracy_scores(models,X,y)
-
-"""Getting accuracy scores of different quantile ranges"""
+def roc_curve_plot(model,X_var,y_var):
+    model = model
+    #split data into train-test data
+    X_var_train, X_var_test, y_var_train, y_var_test = train_test_split(X_var,y_var,test_size = 0.3,random_state =0,stratify = y)
+    # Fit it to the training data
+    model.fit(X_var_train,y_var_train)
+    #make prediction
+    y_var_pred = model.predict(X_var_test)
+    # Confusion Matrix
+    conf_mat = confusion_matrix(y_var_test,y_var_pred)
+    true_positive = conf_mat[0][0]
+    false_positive = conf_mat[0][1]
+    false_negative = conf_mat[1][0]
+    true_negative = conf_mat[1][1]
+    # Area Under Curve
+    auc = roc_auc_score(y_var_test, y_var_pred)
+    fpr, tpr, thresholds = roc_curve(y_var_test, y_var_pred)
+    plt.plot(fpr, tpr, color='b', label='ROC')
+    plt.plot([0, 1], [0, 1], color='g', linestyle='--',label='ROC curve (area = %0.2f)' % auc)
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic (ROC) Curve')
+    plt.legend()
+    plt.show()   
+#Accuracy score before scaling
+models_accuracy_scores(LogisticRegression(),X,y)
+#ROC CURVE
+roc_before_scaling = roc_curve_plot(LogisticRegression(),X,y)
+roc_before_scaling
+#Getting accuracy scores of different quantile ranges
 
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.pipeline import Pipeline
@@ -834,7 +878,7 @@ for ranges in ((1.0, 99.0), (2.0, 98.0), (5.0, 95.0), (10.0, 90.0), (15.0, 85.0)
                           with_scaling=True,
                           quantile_range=ranges, copy=True)
     # instantiate model
-    model = KNeighborsClassifier()
+    model = LogisticRegression()
     # initiate pipeline for two steps(first scaling will be done,then model fitting)
     pipeline = Pipeline(steps=[('scaler', scaler), ('model', model)])
     ##instantiate cross validation
@@ -845,68 +889,95 @@ for ranges in ((1.0, 99.0), (2.0, 98.0), (5.0, 95.0), (10.0, 90.0), (15.0, 85.0)
     scores = round(np.mean(scores), 4)
 
     print('For quantile range:', ranges, 'average score is:', scores)
-"""Apply Robust Scaler"""
+    
+#Distributions of numerical columns before robust scaling
+from matplotlib import pyplot
+columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross']
+pyplot.hist(merged_data_encoded[columns_to_scale], bins=25)
+pyplot.title('Distribution before scaling')
+pyplot.show()
+   
+#Apply Robust Scaler
+from matplotlib import pyplot
 columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross']
 scaler = RobustScaler(with_centering=True,
     with_scaling=True,
-    quantile_range=(25.0, 75.0),copy=True)
+    quantile_range=(30.0, 70.0),copy=True)
 merged_data_encoded[columns_to_scale] = scaler.fit_transform(merged_data_encoded[columns_to_scale])
 merged_data_encoded[columns_to_scale].head()
-"""Model Performance After Robust Scaling"""
-#determining independent and dependent columns for model apply
-X = merged_data_encoded.drop(columns = ['win','No_of_Votes'],axis = 1)
-y = merged_data_encoded['win']
-models = [('LogReg', LogisticRegression(solver = 'liblinear')),
-          ('RandomForest',RandomForestClassifier(n_estimators=100)),
-          ('DecTree', DecisionTreeClassifier()),
-          ('KNN', KNeighborsClassifier()),
-          ('SVM', SVC(gamma = 'scale'))]
-models_accuracy_scores(models,X,y)
-"""After dropping the no_of_votes column, the model performances are higher compared to dropping the gross column.Thus,no_of_votes feature will be dropped."""
-merged_data_encoded.drop(columns = 'No_of_Votes',axis = 1,inplace = True)
+# histogram of the transformed data
+pyplot.hist(merged_data_encoded[columns_to_scale], bins=25)
 
-"""Feature selection by using SelectFromModel L1-based Svm regularization """
+pyplot.title("Distribution after scaling")
+pyplot.show()
+#determining independent and dependent columns for model apply
+X = merged_data_encoded.drop(columns = ['win'],axis = 1)
+y = merged_data_encoded['win']
+X
+
+#Accuracy score and roc curve after scaling
+models_accuracy_scores(LogisticRegression(),X,y)
+roc_after_scaling = roc_curve_plot(LogisticRegression(),X,y)
+roc_after_scaling
+
+#Feature selection by using SelectFromModel L1-based Svm regularization 
+X = merged_data_encoded.drop(columns = ['win'],axis =1)
+y = merged_data_encoded['win']
+#Feature selection by using SelectFromModel L2-based Logistic Regression regularization
+#Hyperparameter (C-index) Tuning
+X = merged_data_encoded.drop(columns = ['win'],axis =1)
+y = merged_data_encoded['win']
+from sklearn.feature_selection import SelectFromModel
+
+#determine 15 c-index values between 0.0001 and 1000
+c_ = np.logspace(-4,3,15)
+#looping in c-index 
+for c in c_:
+    #instantiate logistic regression
+    logreg = LogisticRegression(C=c,penalty = 'l2',solver = 'liblinear',dual = True,max_iter = 100000).fit(X, y)
+    #instantiate select from model
+    selector = SelectFromModel(logreg, prefit=True)
+    #model.get_support()
+    X = selector.transform(X)
+    #getting validation scores
+    scores = model_selection.cross_val_score(logreg, X, y, cv=10, scoring='accuracy')
+    avg_score = round(np.mean(scores),4)
+    print("for",c,"avg_score is",avg_score)
+    
+#Feature Selection Apply
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
 
-from sklearn.svm import LinearSVC
+
 from sklearn.feature_selection import SelectFromModel
 
 #instantiate svm regularization
-lsvc = LinearSVC(C=0.3 ,penalty="l1", dual=False).fit(X, y)
+logreg = LogisticRegression(C= 0.001, penalty = 'l2',solver = 'liblinear').fit(X, y)
 #instantiate select from model
-model = SelectFromModel(lsvc, prefit=True)
+selector = SelectFromModel(estimator = logreg, prefit=True,importance_getter = "coef_")
 #model.get_support()
-X = model.transform(X)
+X = selector.transform(X)
 X.shape
-
 ##getting selected_columns
-support = pd.Series(model.get_support())
+support = pd.Series(selector.get_support())
 column_names = support[support== True].index
 column_names = list(column_names)
 #getting selected column_names
 selected_columns = list(merged_data_encoded.iloc[:,column_names].columns)
 #selected_columns
-
-""" Model accuracy testing after feature selection"""
-models = [('LogReg', LogisticRegression(solver = 'liblinear')),
-          ('RandomForest',RandomForestClassifier(n_estimators=100)),
-          ('DecTree', DecisionTreeClassifier()),
-          ('KNN', KNeighborsClassifier()),
-          ('SVM', SVC(gamma = 'scale'))]
-models_accuracy_scores(models,X,y)
-
-"""6.2 HYPERPARAMETER TUNING OF PREDICTIVE MODELS"""
-"""Writing function for cross validation evaluation of the model performance before hyperparameter tuning"""
-
-
+#Model accuracy and roc curve plotting after feature selection
+models_accuracy_scores(LogisticRegression(),X,y)
+roc_after_feature_selection = roc_curve_plot(LogisticRegression(),X,y)
+roc_after_feature_selection
+X
+y
+#HYPERPARAMETER TUNING OF PREDICTIVE MODELS
+#Writing function for cross validation evaluation of the model performance before hyperparameter tuning
 def cross_val_eval(model, predictor, target):
-    """getting cross validation scores for train and test data with the predictive model"""
-
+#getting cross validation scores for train and test data with the predictive model
     # k-fold cross validation
     kfold = KFold(n_splits=10, random_state=1, shuffle=True)
     kfold.get_n_splits(predictor)
-
     # Instantiate model
     classifier = model
     # Instantiate k as 0
@@ -917,7 +988,6 @@ def cross_val_eval(model, predictor, target):
     train_score = []
     # create empty list to put test scores in it
     test_score = []
-
     # loop for 10 k folds
     for train_index, test_index in kfold.split(predictor):
         # data is an array so it can work on x[value]
@@ -945,125 +1015,10 @@ def cross_val_eval(model, predictor, target):
     print("Average train score is :  ", np.mean(train_score))
     print("Average test score is :  ", np.mean(test_score))
 
-""""KNeighborsClassifier model"""
-"""1-KNeighbors test and train accuracy with cross validation before hyperparameter tuning"""
-cross_val_eval(KNeighborsClassifier(),X,y)
-"""2-Determining test and train accuracy with varying number of neighbors """""
-# import KNN
-from sklearn.neighbors import KNeighborsClassifier
-# import train-test split
-from sklearn.model_selection import train_test_split
-# arange 1 to 40 neighbors for evaluation of performance for each neighbors
-neighbors = np.arange(1, 40)
-# create arrays to store train and test accuracies
-train_accuracy = np.empty(len(neighbors))
-test_accuracy = np.empty(len(neighbors))
-# splitting data for test and train
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0)
-# Loop over different values of k
-for i, k in enumerate(neighbors):
-    # Setup a k-NN Classifier with KNeighborsClassifier : knn
-    knn = KNeighborsClassifier(n_neighbors=k)
-    # Fit the classifier to the training data
-    knn.fit(X_train, y_train)
-    # Compute accuracy on the training set
-    train_accuracy[i] = knn.score(X_train, y_train)
-    # Compute accuracy on the testing set
-    test_accuracy[i] = knn.score(X_test, y_test)
-# Generate plot
-plt.title('k-NN: Varying Number of Neighbors')
-plt.plot(neighbors, test_accuracy, label='Testing Accuracy')
-plt.plot(neighbors, train_accuracy, label='Training Accuracy')
-plt.legend()
-plt.xlabel('Number of Neighbors')
-plt.ylabel('Accuracy')
-plt.show()
-
-"""3- Hyperparameter Tuning"""
-from sklearn.metrics import accuracy_score
-from sklearn.model_selection import GridSearchCV
-# Instantiate KNeighborsClassifier()
-knn = KNeighborsClassifier()
-# splitting data for test and train
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
-# via gridsearch tuning
-param_grid = {'n_neighbors': [2, 3, 4, 6, 7, 8], 'algorithm': ['ball_tree', 'auto'],
-              'leaf_size': [1, 3, 5, 6, 7, 8, 9, 10, 15, 20, 30]}
-# define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits=4, random_state=0)
-# creating Gridsearch for determining best estimator parameters of knn with 10 fold cross validation
-knn_cv = GridSearchCV(knn, param_grid, cv=cv, scoring='accuracy')
-# fit knn with train data
-knn_cv.fit(X_train, y_train)
-# making predictions with test data
-y_pred = knn_cv.predict(X_test)
-# print best parameters determined by gridsearch
-print("Best parameters are :", knn_cv.best_params_)
-print('Best score is :', knn_cv.best_score_)
-
-"""4- Knn accuracy scores with  tuned hyperparameters """
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score
-#Instantiate KNeighborsClassifier()
-knn = KNeighborsClassifier(algorithm ='ball_tree', leaf_size =1, n_neighbors=7)
-#splitting data for test and train
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
-#fit knn with train data
-knn.fit(X_train,y_train)
-#making predictions with test data
-y_pred = knn.predict(X_test)
-#print accuracy
-print("Training accuracy: {}".format(knn.score(X_train, y_train)))
-print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
-#print classification report
-print(classification_report(y_test, y_pred))
-
-"""DECISION TREE"""
-"""Decision Tree test and train accuracy with cross validation before hyperparameter tuning"""
-cross_val_eval(DecisionTreeClassifier(),X,y)
-"""Hyperparameter Tuning"""
-# Import necessary modules
-from scipy.stats import randint
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.model_selection import RandomizedSearchCV
-
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
-# Setup the parameters and distributions
-parameters = {"max_depth": [1,200],
-              "max_features": np.arange(1, 150),
-              "min_samples_leaf": np.arange(1, 200),
-              "criterion": ["gini", "entropy"],
-              "random_state": np.arange(1,1000)}
-#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state =0)
-# Instantiate a Decision Tree classifier dt
-dt = DecisionTreeClassifier()
-# Instantiate the RandomizedSearchCV object
-dt_cv = RandomizedSearchCV(dt,param_distributions= parameters, cv=cv,n_jobs = -1)
-# Fit it to the data
-dt_cv.fit(X_train,y_train)
-# Print the tuned parameters and score
-print("Tuned parameters are : {}".format(dt_cv.best_params_))
-print("Best score of the model is {}".format(dt_cv.best_score_))
-
-"""Decision Tree accuracy scores with tuned hyperparameters"""
-#split data into train-test data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
-
-model = DecisionTreeClassifier(random_state =767,max_depth= 200,min_samples_leaf =52, max_features = 142,criterion= 'gini')
-#fit the model
-model.fit(X_train,y_train)
-#getting predictions
-y_pred = model.predict(X_test)
-#print test and train accuracy
-print("Training accuracy: {}".format(model.score(X_train, y_train)))
-print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
-#print classification report
-print(classification_report(y_test, y_pred))
-"""LOGISTIC REGRESSION"""
-"""Logistic Regression test and train accuracy with cross validation before hyperparameter tuning"""
+#LOGISTIC REGRESSION
+#Logistic Regression test and train accuracy with cross validation before hyperparameter tuning
 cross_val_eval(LogisticRegression(),X,y)
-"""Hyperparameter Tuning"""
+#Hyperparameter Tuning
 # Create the classifier: logreg
 
 logreg = LogisticRegression(solver='liblinear')
@@ -1098,158 +1053,3 @@ print("Accuracy: {}".format(logreg_cv.score(X_test, y_test)))
 #print classification report
 print(classification_report(y_test, y_pred))
 logreg_cv.best_params_
-"""Logistic Regression accuracy scores with tuned hyperparameters"""
-logreg = LogisticRegression(C = 1000, penalty = 'l2',solver = 'liblinear')
-
-# #split data into train-test data
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
-# Fit it to the training data
-logreg.fit(X_train,y_train)
-#make prediction
-y_pred = logreg.predict(X_test)
-#print accuracy of train and test data
-print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
-print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
-#print classification report
-print(classification_report(y_test, y_pred))
-
-"""SUPPORT VECTOR MACHINE MODEL"""
-"""Support Vector test and train accuracy with cross validation before hyperparameter tuning"""
-cross_val_eval(SVC(),X,y)
-"""Hyperparameter Tuning"""
-from sklearn.svm import SVC
-
-model = SVC()
-# Specify the hyperparameter space
-param_grid = {'C': [0.1,1, 10], 'gamma': [1,0.1,0.001],'kernel' : ('rbf', 'poly', 'sigmoid')}
-
-# Create train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
-
-#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state = 0)
-
-# Instantiate the GridSearchCV object
-search = GridSearchCV(model,param_grid = param_grid,cv=cv)
-
-# Fit to the training set
-search.fit(X_train,y_train)
-
-# Predictions of the test set
-y_pred = search.predict(X_test)
-
-# print accuracy and classification report
-print("Accuracy: {}".format(search.score(X_test, y_test)))
-print(classification_report(y_test, y_pred))
-#getting best parameters
-print("Tuned Model Parameters: {}".format(search.best_params_))
-"""SVM accuracy scores with tuned hyperparameters"""
-model = SVC(C = 10, gamma = 0.1)
-#train,test splitting data as train and test with size of 80/20
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
-#fit model
-model.fit(X_train,y_train)
-#make predictions
-y_pred = model.predict(X_test)
-#getting accuracy results for test and train data
-print("Training accuracy: {}".format(model.score(X_train, y_train)))
-print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
-#print classification report
-print(classification_report(y_test, y_pred))
-"""RANDOM FOREST CLASSIFIER"""
-cross_val_eval(RandomForestClassifier(),X,y)
-"""Hyperparameter Tuning"""
-model = RandomForestClassifier()
-
-
-# Specify the hyperparameter space
-parameters = {'bootstrap': [True, False],
- 'max_depth': [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, None],
- 'max_features': ['auto', 'sqrt'],
- 'min_samples_leaf': [1, 2, 4],
- 'min_samples_split': [2, 5, 10,20],
- 'n_estimators': [10, 20, 40, 50, 100, 200, 250]}
-
-# Create train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
-
-#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits = 3,n_repeats = 3,random_state = 1)
-
-# Instantiate the GridSearchCV object
-search = RandomizedSearchCV(model,param_distributions = parameters,cv=cv)
-
-# Fit to the training set
-search.fit(X_train,y_train)
-
-# Prediction of test data
-y_pred = search.predict(X_test)
-
-#printing  accuracy and confusion matrix
-print("Accuracy: {}".format(search.score(X_test, y_test)))
-print(classification_report(y_test, y_pred))
-#getting best paramaters
-print("Tuned Model Parameters: {}".format(search.best_params_))
-"""Random Forest accuracy scores with tuned hyperparameters"""
-model = RandomForestClassifier(n_estimators= 250, min_samples_split= 5, min_samples_leaf= 1, max_features='auto', max_depth=90, bootstrap= False)
-
-#splitting data in test and train data
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
-#fitting model
-model.fit(X_train,y_train)
-#getting predictions from test data
-y_pred = model.predict(X_test)
-print("Training accuracy: {}".format(model.score(X_train, y_train)))
-print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
-#print classification report
-print(classification_report(y_test, y_pred))
-""" Gradient Boosting classifier"""
-"""Gradient Boosting classifier test and train accuracy with cross validation before hyperparameter tuning"""
-from sklearn.ensemble import GradientBoostingClassifier
-cross_val_eval(GradientBoostingClassifier(),X,y)
-"""Hyperparameter Tuning"""
-from sklearn.ensemble import GradientBoostingClassifier
-
-model = GradientBoostingClassifier()
-# Specify the hyperparameter space
-parameters = {'max_depth': [3,5,8,10, None],
- 'min_samples_leaf': [1, 2, 4,8],
- 'min_samples_split': [2,4,5],
- 'n_estimators': [50, 100, 200]}
-
-# Create train and test sets
-X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state = 0,stratify = y)
-
-#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state = 1)
-
-# Instantiate the GridSearchCV object
-search = RandomizedSearchCV(model,param_distributions = parameters,cv=cv,random_state = 0)
-
-# Fit to the training set
-search.fit(X_train,y_train)
-
-# Predict the labels of the test set: y_pred
-y_pred = search.predict(X_test)
-
-# Compute and print metrics
-print("Accuracy: {}".format(search.score(X_test, y_test)))
-print(classification_report(y_test, y_pred))
-print("Tuned Model Parameters: {}".format(search.best_params_))
-"""Gradient Boosting classifier accuracy scores with tuned hyperparameters"""
-# Import GradientBoostingClassifier
-from sklearn.ensemble import GradientBoostingClassifier
-# Instantiate gb
-gb = GradientBoostingClassifier(n_estimators = 100,min_samples_split = 5,min_samples_leaf = 1,max_depth = 3,random_state=1)
-# Fit gb to the training set
-gb.fit(X_train,y_train)
-
-# Predict test set labels
-y_pred = gb.predict(X_test)
-# Calculate accuracy score
-accuracy = accuracy_score(y_test, y_pred)
-print('GB: {:.3f}'.format(accuracy))
-#confusion matrix results
-conf_mat = confusion_matrix(y_test,y_pred)
-print(conf_mat)
-
