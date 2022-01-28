@@ -248,7 +248,7 @@ votes_null = merged_data.loc[gross_index_lst]['No_of_Votes']
 #extracting null data
 data_null = merged_data.loc[gross_index_lst]
 #calculating gross values according to intercept and slope
-gross_scores_null = round((10661783.398254469) + ((184.16528980872417)*votes_null))
+gross_scores_null = round((results.intercept) + ((results.slope)*votes_null))
 #imputating null gross rows
 merged_data.loc[gross_index_lst,'Gross'] = gross_scores_null
 merged_data.loc[gross_index_lst].head()
@@ -519,9 +519,8 @@ meta_scores_null = merged_data.loc[metascore_index_lst]['Meta_score']
 imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
-#calculating metascores values according to intercept and coefficient value of imdb scores
-#calculating metascores values according to intercept and coefficient value of imdb scores
-meta_scores_null = round((-17.269931628675778) + ((12.005067620755545)*imdb_rating_null))
+#calculating metascores values according to linear equation
+meta_scores_null = round((results.intercept) + ((results.slope)*IMDB_Rating_null))
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -700,14 +699,14 @@ def plot_cloud(wordcloud):
 wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd").generate(
     ' '.join(awarded['Overview']))
 plot_cloud(wordcloud)
-"""Question4; Who are the director's of 5 movies with highest gross values  and what are the genres of these films?"""
-#getting rows including  first 5 highest gross values
-merged_data_gross_max = merged_data.sort_values(by = 'Gross', ascending=False).head()
-#merged_data_gross_max
+"""Question4; Who are the director's of 5 movies with highest metascore values and what are the titles of these films?"""
+#getting rows including  first 5 highest metascore values
+merged_data_metascore_max = merged_data.sort_values(by = 'Meta_score', ascending=False).head()
+#merged_data_metascore_max
 """Plotting stripplot"""
-sns.stripplot(x = 'Director',y = 'Gross',hue = 'Series_Title',data = merged_data_gross_max)
+sns.stripplot(x = 'Meta_score',y = 'Director',hue = 'Series_Title',data = merged_data_metascore_max)
 plt.xticks(rotation=40)
-plt.title('The directors and genres of the top 5 highest-grossing films')
+plt.title('The directors and genres of the top 5 highest-metascoring films')
 plt.show()
 """Question 5 = Who are the leading actors of the films with the highest 5 imdb points that are Oscar awarded and 
 what is the certificate of these films?"""
@@ -920,15 +919,14 @@ models_accuracy_scores(LogisticRegression(),X,y)
 roc_after_scaling = roc_curve_plot(LogisticRegression(),X,y)
 roc_after_scaling
 
-#Feature selection by using SelectFromModel L1-based Svm regularization 
+#Feature selection by using SelectFromModel L2-based Logistic Regression regularization
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
-#Feature selection by using SelectFromModel L2-based Logistic Regression regularization
+
 #Hyperparameter (C-index) Tuning
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
 from sklearn.feature_selection import SelectFromModel
-
 #determine 15 c-index values between 0.0001 and 1000
 c_ = np.logspace(-4,3,15)
 #looping in c-index 
@@ -937,7 +935,6 @@ for c in c_:
     logreg = LogisticRegression(C=c,penalty = 'l2',solver = 'liblinear',dual = True,max_iter = 100000).fit(X, y)
     #instantiate select from model
     selector = SelectFromModel(logreg, prefit=True)
-    #model.get_support()
     X = selector.transform(X)
     #getting validation scores
     scores = model_selection.cross_val_score(logreg, X, y, cv=10, scoring='accuracy')
@@ -947,31 +944,46 @@ for c in c_:
 #Feature Selection Apply
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
-
-
 from sklearn.feature_selection import SelectFromModel
 
-#instantiate svm regularization
+#instantiate model
 logreg = LogisticRegression(C= 0.001, penalty = 'l2',solver = 'liblinear').fit(X, y)
 #instantiate select from model
 selector = SelectFromModel(estimator = logreg, prefit=True,importance_getter = "coef_")
-#model.get_support()
 X = selector.transform(X)
 X.shape
+#getting information of selected columns
+selector.get_support()
+#coefficient value of each row
+selector.estimator.coef_
+#creating dataframe of coefficient values
+coef_df = pd.DataFrame(selector.estimator.coef_)
+coef_df
+#getting column names to assign them to coef_df columns
+columns = [x for x in merged_data_encoded.columns]
+#dropping target variable because it was not scaled so there is no column related to win in coefficient dataframe
+columns.remove('win')
+len(columns)
+#assigning columns names to coef_df
+coef_df.columns = columns
+#getting the first 20 largest coefficient values with column names
+coef_df.iloc[0].nlargest(20)
 ##getting selected_columns
 support = pd.Series(selector.get_support())
 column_names = support[support== True].index
+#getting list of column names
 column_names = list(column_names)
 #getting selected column_names
 selected_columns = list(merged_data_encoded.iloc[:,column_names].columns)
-#selected_columns
+selected_columns[1:15]
 #Model accuracy and roc curve plotting after feature selection
 models_accuracy_scores(LogisticRegression(),X,y)
 roc_after_feature_selection = roc_curve_plot(LogisticRegression(),X,y)
 roc_after_feature_selection
 X
 y
-#HYPERPARAMETER TUNING OF PREDICTIVE MODELS
+# MODEL APPLY
+
 #Writing function for cross validation evaluation of the model performance before hyperparameter tuning
 def cross_val_eval(model, predictor, target):
 #getting cross validation scores for train and test data with the predictive model
@@ -1019,37 +1031,67 @@ def cross_val_eval(model, predictor, target):
 #Logistic Regression test and train accuracy with cross validation before hyperparameter tuning
 cross_val_eval(LogisticRegression(),X,y)
 #Hyperparameter Tuning
+# Liblinear Solver
+warnings. simplefilter(action='ignore', category=UserWarning)
 # Create the classifier: logreg
-
-logreg = LogisticRegression(solver='liblinear')
-
+logreg_lib = LogisticRegression(max_iter = 10000)
 # Create training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.3, random_state=0,stratify = y)
-
 # Create the hyperparameter grid
-c_space = np.logspace(-3, 3, 5)
-param_grid = {'C': c_space,'penalty': ['l1','l2']}
-
+#creating 15 c-index between 0.01 to 100
+c_space = np.logspace(-2, 2, 15)
+param_grid = {'C': c_space}
+param_grid['solver'] = ['liblinear']
+param_grid['penalty'] = ['l1','l2']
 #define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits = 10,n_repeats = 3,random_state = 0)
-
+cv = RepeatedStratifiedKFold(n_splits = 9,n_repeats = 3,random_state = 0)
 #creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
-
-logreg_cv = GridSearchCV(logreg,param_grid,cv=cv,scoring = 'accuracy')
-
+logreg_lib_cv = GridSearchCV(logreg_lib,param_grid,cv=cv,scoring = 'accuracy')
 #fit logr. with train data
-
-logreg_cv.fit(X_train,y_train)
-
+logreg_lib_cv.fit(X_train,y_train)
 #making predictions with test data
-
-y_pred = logreg_cv.predict(X_test)
-
-#print best parameters determined by gridsearch
-logreg_cv.best_params_
-
+y_pred = logreg_lib_cv.predict(X_test)
 #print accuracy
-print("Accuracy: {}".format(logreg_cv.score(X_test, y_test)))
+accuracy = logreg_lib_cv.score(X_test, y_test)
+print("Accuracy of ",param_grid,"is :",accuracy)
 #print classification report
 print(classification_report(y_test, y_pred))
-logreg_cv.best_params_
+#print best parameters determined by gridsearch
+logreg_lib_cv.best_params_
+logreg = LogisticRegression(C = 3.73,solver = 'liblinear',penalty = 'l2',max_iter = 10000)
+# #split data into train-test data
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
+# Fit it to the training data
+logreg.fit(X_train,y_train)
+#make prediction
+y_pred = logreg.predict(X_test)
+#print accuracy of train and test data
+print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+#Lbfs Solver
+# Create the classifier: logreg
+warnings.simplefilter(action='ignore', category=UserWarning)
+logreg_lfs = LogisticRegression(max_iter=100000)
+# Create training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+# Create the hyperparameter grid
+c_space = np.logspace(-2, 2, 15)
+param_grid = {'C': c_space}
+param_grid['solver'] = ['lbfgs']
+param_grid['penalty'] = ['l2', 'none']
+# define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
+# creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
+logreg_cv_lfs = GridSearchCV(logreg_lfs, param_grid, cv=cv, scoring='accuracy')
+# fit logr. with train data
+logreg_cv_lfs.fit(X_train, y_train)
+# making predictions with test data
+y_pred = logreg_cv_lfs.predict(X_test)
+# print accuracy
+accuracy = logreg_cv_lfs.score(X_test, y_test)
+print("Accuracy of ", param_grid, "is :", accuracy)
+# print classification report
+print(classification_report(y_test, y_pred))
+print(logreg_cv_lfs.best_params_)
