@@ -520,7 +520,7 @@ imdb_rating_null = merged_data.loc[metascore_index_lst]['IMDB_Rating']
 """extracting null data"""
 data_null = merged_data.loc[metascore_index_lst]
 #calculating metascores values according to linear equation
-meta_scores_null = round((results.intercept) + ((results.slope)*IMDB_Rating_null))
+meta_scores_null = round((results.intercept) + ((results.slope)*imdb_rating_null))
 """imputating null metascores rows"""
 merged_data.loc[metascore_index_lst,'Meta_score'] = meta_scores_null
 merged_data.loc[metascore_index_lst].head()
@@ -699,17 +699,15 @@ def plot_cloud(wordcloud):
 wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd").generate(
     ' '.join(awarded['Overview']))
 plot_cloud(wordcloud)
-"""Question4; Who are the director's of 5 movies with highest metascore values and what are the titles of these films?"""
-#getting rows including  first 5 highest metascore values
-merged_data_metascore_max = merged_data.sort_values(by = 'Meta_score', ascending=False).head()
-#merged_data_metascore_max
-"""Plotting stripplot"""
-sns.stripplot(x = 'Meta_score',y = 'Director',hue = 'Series_Title',data = merged_data_metascore_max)
-plt.xticks(rotation=40)
-plt.title('The directors and genres of the top 5 highest-metascoring films')
+"""Question4; Who are the directors of the films with the highest 5 metascores that are Oscar awarded and what is the certificate of these films?"""
+"""extracting oscar awarded movies"""
+awarded = merged_data[merged_data['win']== 1]
+awarded_first_five_metascore = awarded.sort_values(by= 'Meta_score',ascending = False).head()
+#awarded_first_five_metascore
+sns.stripplot(x = 'Certificate',y = 'Director',hue ='Series_Title',data = awarded_first_five_metascore)
+plt.title('The directors and certificates of the movies with the highest top 5 meta_scores')
 plt.show()
-"""Question 5 = Who are the leading actors of the films with the highest 5 imdb points that are Oscar awarded and 
-what is the certificate of these films?"""
+"""Question 5 = Who are the leading actors of top award-winning 20 movies with highest gross values?"""
 #extracting Oscar awarded movies
 awarded_data = merged_data[merged_data['win']  == 1]
 #extracting leading actor and gross columns
@@ -732,7 +730,6 @@ merged_data = merged_data.set_index('Series_Title')
 merged_data.drop(columns = ['Overview','Ceremony Year','Poster_Link','Year_of_release'],axis =1,inplace = True)
 
 """One-Hot encoding on categorical features using get_dummies()"""
-
 Genre = merged_data['Genre']
 Genre = Genre.str.get_dummies()
 Certificate = merged_data['Certificate']
@@ -754,9 +751,7 @@ merged_data_encoded = pd.concat(
         Genre, Certificate, Star1, Star2, Star3, Star4, Director],
     axis=1,)
 merged_data_encoded.head()
-
 """Handling Outliers"""
-
 """PLOTTING OUTLIERS"""
 for x in ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross']:
     boxplot = merged_data_encoded.boxplot(column=[x],figsize =(3,3))
@@ -1213,3 +1208,34 @@ print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
 print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
 #print classification report
 print(classification_report(y_test, y_pred))
+#Logistic Regression accuracy scores with best performing hyperparameters
+logreg = LogisticRegression(C = 3.73, penalty = 'l2',solver = 'liblinear',random_state = 0)
+
+# #split data into train-test data
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
+# Fit it to the training data
+logreg.fit(X_train,y_train)
+#make prediction
+y_pred = logreg.predict(X_test)
+#print accuracy of train and test data
+print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+# Confusion Matrix
+conf_mat = confusion_matrix(y_test,y_pred)
+conf_mat
+true_positive = conf_mat[0][0]
+false_positive = conf_mat[0][1]
+false_negative = conf_mat[1][0]
+true_negative = conf_mat[1][1]
+#Evaluation Scores
+Recall = true_positive/(true_positive+false_negative)
+Recall
+# Precison
+Precision = true_positive/(true_positive+false_positive)
+Precision
+F1 = 2*Precision*Recall/(Precision+Recall)
+F1
+roc_after_tuning = roc_curve_plot(LogisticRegression(C = 3.73, penalty = 'l2',solver = 'liblinear',random_state = 0),X,y)
+roc_after_tuning
