@@ -1043,7 +1043,7 @@ c_space = np.logspace(-2, 2, 15)
 param_grid = {'C': c_space}
 param_grid['solver'] = ['liblinear']
 param_grid['penalty'] = ['l1','l2']
-#define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+#define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
 cv = RepeatedStratifiedKFold(n_splits = 9,n_repeats = 3,random_state = 0)
 #creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
 logreg_lib_cv = GridSearchCV(logreg_lib,param_grid,cv=cv,scoring = 'accuracy')
@@ -1081,7 +1081,7 @@ c_space = np.logspace(-2, 2, 15)
 param_grid = {'C': c_space}
 param_grid['solver'] = ['lbfgs']
 param_grid['penalty'] = ['l2', 'none']
-# define k-fold cross validation evaluation with 10 folds (RepeatedStratifiedKFold - classification)
+# define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
 cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
 # creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
 logreg_cv_lfs = GridSearchCV(logreg_lfs, param_grid, cv=cv, scoring='accuracy')
@@ -1095,3 +1095,121 @@ print("Accuracy of ", param_grid, "is :", accuracy)
 # print classification report
 print(classification_report(y_test, y_pred))
 print(logreg_cv_lfs.best_params_)
+#Newton-cg Solver
+warnings.simplefilter(action='ignore', category=UserWarning)
+
+logreg_newt = LogisticRegression(max_iter=10000)
+# Create training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+# Create the hyperparameter grid
+param_grid = dict()
+param_grid['solver'] = ['newton-cg']
+param_grid['penalty'] = ['none', 'l2']
+param_grid['C'] = np.logspace(-2, 2, 15)
+
+# define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
+# creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
+
+logreg_newt_cv = GridSearchCV(logreg_newt, param_grid, cv=cv, scoring='accuracy')
+
+# fit logr. with train data
+logreg_newt_cv.fit(X_train, y_train)
+
+# making predictions with test data
+y_pred = logreg_newt_cv.predict(X_test)
+
+# print accuracy
+accuracy = logreg_newt_cv.score(X_test, y_test)
+print("Accuracy of ", param_grid, "is :", accuracy)
+# print classification report
+print(classification_report(y_test, y_pred))
+# print best parameters determined by gridsearch
+print(logreg_newt_cv.best_params_)
+logreg = LogisticRegression(C = 7.197,solver = 'newton-cg',penalty = 'l2',max_iter = 10000)
+# #split data into train-test data
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
+# Fit it to the training data
+logreg.fit(X_train,y_train)
+#make prediction
+y_pred = logreg.predict(X_test)
+#print accuracy of train and test data
+print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
+#Saga Solver
+import warnings
+
+warnings.simplefilter(action='ignore', category=UserWarning)
+
+logreg_saga = LogisticRegression(max_iter=10000, l1_ratio=0.1)
+# Create training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+# Create the hyperparameter grid
+param_grid = dict()
+param_grid['solver'] = ['saga']
+param_grid['penalty'] = ['l1', 'l2', 'elasticnet', 'none']
+
+# define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
+# creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
+logreg_saga_cv = GridSearchCV(logreg_saga, param_grid, cv=cv, scoring='accuracy')
+# fit logr. with train data
+logreg_saga_cv.fit(X_train, y_train)
+# making predictions with test data
+y_pred = logreg_saga_cv.predict(X_test)
+# print accuracy
+accuracy = logreg_saga_cv.score(X_test, y_test)
+print("Accuracy of ", param_grid, "is :", accuracy)
+# print classification report
+print(classification_report(y_test, y_pred))
+# print best parameters determined by gridsearch
+print(logreg_saga_cv.best_params_)
+#Determining c_index :
+import warnings
+
+warnings.simplefilter(action='ignore', category=UserWarning)
+
+logreg_saga = LogisticRegression(max_iter=10000, l1_ratio=0.1)
+# Create training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
+# Create the hyperparameter grid
+param_grid = dict()
+param_grid['solver'] = ['saga']
+param_grid['penalty'] = ['none']
+param_grid['C'] = np.logspace(-2, 2, 15)
+
+# define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
+cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
+
+# creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
+
+logreg_saga_cv = GridSearchCV(logreg_saga, param_grid, cv=cv, scoring='accuracy')
+
+# fit logr. with train data
+logreg_saga_cv.fit(X_train, y_train)
+
+# making predictions with test data
+
+y_pred = logreg_saga_cv.predict(X_test)
+
+# print accuracy
+accuracy = logreg_saga_cv.score(X_test, y_test)
+print("Accuracy of ", param_grid, "is :", accuracy)
+# print classification report
+print(classification_report(y_test, y_pred))
+# print best parameters determined by gridsearch
+print(logreg_saga_cv.best_params_)
+logreg = LogisticRegression(C = 0.01,solver = 'saga',penalty = 'none',max_iter = 10000,l1_ratio = 0.1)
+# #split data into train-test data
+X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
+# Fit it to the training data
+logreg.fit(X_train,y_train)
+#make prediction
+y_pred = logreg.predict(X_test)
+#print accuracy of train and test data
+print("Training accuracy: {}".format(logreg.score(X_train, y_train)))
+print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
+#print classification report
+print(classification_report(y_test, y_pred))
