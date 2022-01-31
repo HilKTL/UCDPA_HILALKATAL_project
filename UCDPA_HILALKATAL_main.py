@@ -1239,3 +1239,24 @@ F1 = 2*Precision*Recall/(Precision+Recall)
 F1
 roc_after_tuning = roc_curve_plot(LogisticRegression(C = 3.73, penalty = 'l2',solver = 'liblinear',random_state = 0),X,y)
 roc_after_tuning
+#FALSE NEGATIVE FILMS
+#calling negative predictions
+pred0 = np.where(y_pred==0)
+pred0
+#calling positive class of test data
+y_test1 = np.where(y_test == 1)
+y_test1
+#empty list for appending index of false negative films
+FN_indexes = []
+#calling awarded movies which are predicted unawarded
+for pred in pred0[0]:
+    for test in y_test1[0]:
+        if pred == test :
+            FN_indexes.append(pred)
+print(FN_indexes)
+y_test.iloc[FN_indexes]
+false_neg_films = y_test.iloc[FN_indexes]
+false_nega_titles = false_neg_films.index
+"""False negative predicted films"""
+false_nega_titles
+merged_data.loc[false_nega_titles]
