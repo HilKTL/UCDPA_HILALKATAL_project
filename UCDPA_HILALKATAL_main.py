@@ -61,13 +61,15 @@ oscar_df.head()
 Since the target variable in the analysis is whether to win an Oscar or not, we will extract movies from the file.
 Because only movies are honoured with Oscar award.Therefore, title.basics.tsv.gz will be downloaded from IMDb database to get the 
 title types of dfa"""
+"""Imdb title basics dataset"""
+df = pd.read_csv('C:\\Users\\serta\Downloads\\title.basics.tsv.gz',usecols = ['titleType','originalTitle'],delimiter="\t")
+# saving title.basics.tsv.gz with two columns as tsv file
+df.to_csv('C:\\Users\\serta\Downloads\\imdb_title_basics.tsv', sep="\t")
 #getting the name of the movies of dfa file with generator expression
 titles = (x for x in dfa['Series_Title'])
 #titles
-
-#Read csv in dataframe
-df = pd.read_csv('C:\\Users\\serta\Downloads\\title.basics.tsv.gz',usecols = ['titleType','originalTitle'],dtype={'titleType':'category','originalTitle':'category'} ,delimiter="\t")
 df['titleType'].unique()
+"""Extracting movies and titles from title basics data.So I can call these titles from Imdb movies and tv shows data."""
 df_movies = df[df['titleType']=='movie']
 df_movies.head()
 df_movies = df_movies[df_movies['originalTitle'].isin(titles)].drop_duplicates(subset = 'originalTitle' )
@@ -1166,7 +1168,7 @@ import warnings
 
 warnings.simplefilter(action='ignore', category=UserWarning)
 
-logreg_saga = LogisticRegression(max_iter=10000, l1_ratio=0.1)
+logreg_saga = LogisticRegression(max_iter=10000)
 # Create training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
 # Create the hyperparameter grid
@@ -1196,7 +1198,7 @@ print("Accuracy of ", param_grid, "is :", accuracy)
 print(classification_report(y_test, y_pred))
 # print best parameters determined by gridsearch
 print(logreg_saga_cv.best_params_)
-logreg = LogisticRegression(C = 0.01,solver = 'saga',penalty = 'none',max_iter = 10000,l1_ratio = 0.1)
+logreg = LogisticRegression(C = 0.01,solver = 'saga',penalty = 'none')
 # #split data into train-test data
 X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
 # Fit it to the training data
@@ -1257,6 +1259,6 @@ print(FN_indexes)
 y_test.iloc[FN_indexes]
 false_neg_films = y_test.iloc[FN_indexes]
 false_nega_titles = false_neg_films.index
-"""False negative predicted films"""
+#False negative predicted films
 false_nega_titles
 merged_data.loc[false_nega_titles]
