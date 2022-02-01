@@ -23,7 +23,6 @@ from sklearn.model_selection import cross_val_score
 from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score,classification_report
 
 """DATA EXTRACTION - WEB SCRAPING"""
-
 """1 - Imdb movies dataset"""
 """Sending http request with request module"""
 import requests
@@ -79,7 +78,6 @@ titles_movies = (x for x in df_movies['originalTitle'])
 #extracting title type of movies from dfa file
 dfa = dfa[dfa['Series_Title'].isin(titles_movies)]
 dfa.info()
-
 """MERGING IMDB AND OSCAR MOVIES DATASET"""
 """extracting Oscar awarded movies"""
 oscar_winner_df = oscar_df[oscar_df['winner'] == True]
@@ -165,7 +163,6 @@ index_of_inappropriate_dates = merged_data[merged_data['Year_of_release'].isin([
 print(index_of_inappropriate_dates)
 merged_data = merged_data.drop(index=index_of_inappropriate_dates, axis=0)
 merged_data.info()
-
 """MISSING VALUES IMPUTATION"""
 merged_data.isna().sum()
 """Missing value visualization for detecting if the missing values have any relationhip between variables to detect missingness is not random or not"""
@@ -179,7 +176,6 @@ plt.show()
 def missing_values_percentage(df):
     return sum(df.isna().sum())/len(df.values)*100
 print(missing_values_percentage(merged_data))
-
 """
 IMPUTATING GROSS COLUMN
 for datatype manipulation ,nan values were imputed with zero before,
@@ -204,10 +200,8 @@ subset.corr()
 #"""according to results,there is a high correlation between gross and number of votes column.Therefore,imputation will be made according to number of votes column
 #extracting data in which gross isnot null
 data = merged_data[~merged_data['Gross'].isnull()]
-
 #getting linear regression equation between gross and no_o_votes column
 from scipy.stats import linregress
-
 xi = data['No_of_Votes']
 yi = data['Gross']
 # Compute the linear regression
@@ -569,7 +563,6 @@ merged_data['Star2'].unique()
 merged_data['Star3'].unique()
 merged_data['Star4'].unique()
 merged_data['Series_Title'].unique()
-
 """EXPLORATORY ANALYSIS"""
 #plotting pairwise relationship between numerical variables
 sns.pairplot(data = merged_data,hue = 'win',hue_order = [0,1],vars = ['Gross','IMDB_Rating','Meta_score','Gross','No_of_Votes'] )
@@ -596,20 +589,16 @@ def ecdf(df):
     """Compute ECDF for a one-dimensional array of measurements."""
     # Number of data points
     length = len(df)
-
     # sorting x array: x
     x = np.sort(df)
-
     # y-data for the ECDF: y
     y = np.arange(1, length+1) / length
-
     return x, y
 """Plotting ecdf of imdb scores of awarded and not awarded data"""
 x,y = ecdf(imdb_not_oscar)
 x_oscar,y_oscar = ecdf(imdb_oscar)
 _ = plt.plot(x,y,marker = '*',linestyle = '-',label = 'Not_awarded')
 _ = plt.plot(x_oscar,y_oscar,marker = '*',linestyle = '-',label = 'Awarded')
-
 plt.legend(loc = 'lower right')
 _ = plt.xlabel('Imdb scores')
 _ = plt.ylabel('ECDF')
@@ -620,30 +609,24 @@ Permutation samples of imdb scores will be created to investigate if they will o
 for _ in range(50):
     # Concatenate two datasets
     df = np.concatenate((imdb_oscar, imdb_not_oscar))
-
     # Permute the concatenated array: permuted_data
     permuted_df = np.random.permutation(df)
-
     # Split the permuted array into two: perm_sample_1, perm_sample_2
     perm_sample_awarded = permuted_df[:len(imdb_oscar)]
     perm_sample_not_awarded = permuted_df[len(imdb_oscar):]
-
     # Compute ECDFs
     x_awarded, y_awarded = ecdf(perm_sample_awarded)
     x_not_awarded, y_not_awarded = ecdf(perm_sample_not_awarded)
-
     # Plot ECDFs of permutation samples
     _ = plt.plot(x_awarded, y_awarded, marker='_',
                  color='red', alpha=0.01)
     _ = plt.plot(x_not_awarded, y_not_awarded, marker='_',
                  color='blue', alpha=0.01)
-
 # Create and plot ECDFs from merged data(original data)
 x_org_awarded, y_org_awarded = ecdf(imdb_oscar)
 x_not_org_awarded, y_not_org_awarded = ecdf(imdb_not_oscar)
 _ = plt.plot(x_org_awarded, y_org_awarded, marker='.', color='red', label='Awarded')
 _ = plt.plot(x_not_org_awarded, y_not_org_awarded, marker='.', color='blue', label='Not_awarded')
-
 # Label axes, set margin, and show plot
 plt.margins(0.02)
 _ = plt.xlabel('imdb')
@@ -652,25 +635,20 @@ plt.legend(loc='lower right')
 plt.title(
     'ECDF of imdb scores awarded ,not awarded and permutation samples of concatenated awarded and not awarded movies')
 plt.show()
-
 """According to graphic, we can see that none of permutation samples overlap on observed data ,they remain between ecdf line of awarded
 and not awarded data ,which shows that imdb scores aren't identically distributed between awarded and not awarded data"""
-
 """Question 2: What is the genre distribution of the award-winning films? """
 from collections import Counter
-
 # Counter is a sub-class to count hashable objects as key: value pairs (as a dictionary)
 # extract awarded movies' genres
 dtseries = awarded_data["Genre"]
 # print(dtseries)
-
 # creating empty list to collect genres
 counts_lst = []
 for entry in dtseries:
     # print(entry)
     # extract each genre from groups of genres
     a = entry.split(",")
-
     # print(a)
     for genre in a:
         # print(genre)
@@ -678,7 +656,6 @@ for entry in dtseries:
         genre = genre.strip()
         # print(genre)
         counts_lst.append(genre)
-
 # getting dictionary of genres and counts
 Counter(counts_lst)
 #creating series of counted list
@@ -690,14 +667,10 @@ plt.title('Genres of awarded movies')
 """Question 3 : Which words were used mostly in the overview of the top 50 movies with highest number of votes which are Oscar awarded? """
 awarded = merged_data[merged_data['win']== 1]
 awarded = awarded.sort_values(by= 'No_of_Votes',ascending = False).head(50)
-
-
 def plot_cloud(wordcloud):
     plt.figure(figsize=(15, 15))
     plt.imshow(wordcloud)
-
     plt.axis("off");
-
 wordcloud = WordCloud(width=500, height=500, background_color='#40E0D0', colormap="OrRd").generate(
     ' '.join(awarded['Overview']))
 plot_cloud(wordcloud)
@@ -723,14 +696,11 @@ mean_gross_first_twenty = mean_gross.head(20)
 mean_gross_first_twenty.plot.barh(title = 'Leading actors of the movies with top 20 highest profits ',color = 'c',figsize=(11, 6))
 plt.xlabel('Gross in millions')
 plt.show()
-
 """ PREDICTIVE ANALYSIS"""
-
 #changing index as titles of movies
 merged_data = merged_data.set_index('Series_Title')
 # dropping columns which will be not used in predictive analysis
 merged_data.drop(columns = ['Overview','Ceremony Year','Poster_Link','Year_of_release'],axis =1,inplace = True)
-
 """One-Hot encoding on categorical features using get_dummies()"""
 Genre = merged_data['Genre']
 Genre = Genre.str.get_dummies()
@@ -758,7 +728,6 @@ merged_data_encoded.head()
 for x in ['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross']:
     boxplot = merged_data_encoded.boxplot(column=[x],figsize =(3,3))
     plt.show()
-
 #determination of percentage of outlier values of a column
 def outliers_percentage(x):
     """finding upper and lower outlier values"""
@@ -792,27 +761,21 @@ def sum_per_outliers(lst):
     return np.sum(percentage_lst)
 #total percentage of outliers of all numerical columns
 sum_per_outliers(['Runtime','IMDB_Rating','Meta_score','No_of_Votes','Gross'])
-
 #Since the amount of outliers are  25.15% percent of the data ,outliers will not be removed,
 #instead they  will be scaled with robust standardization which uses quartile method for scaling.
 #Before scaling correlation between independent variables will be examined.
-
 #Determining high correlated features
-
 columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross', 'No_of_Votes','win']
 cor = merged_data_encoded[columns_to_scale].corr(method = 'pearson')
 plt.figure(figsize = (10,6))
 sns.heatmap(cor, annot = True ,square=True, cmap='RdYlGn',fmt='.4g')
 #The number of votes has high correlation with gross and IMDB column.It will be dropped.
 merged_data_encoded.drop(columns = 'No_of_Votes',axis = 1,inplace = True)
-
 #SCALE NUMERICAL COLUMNS
-
 #Model accuracy before robust scaling (after dropping no_of_votes column)model accuracy before robust scaling (after dropping no_of_votes column)
 #determining independent and dependent columns for model apply
 X = merged_data_encoded.drop(columns = ['win'],axis = 1)
 y = merged_data_encoded['win']
-
 #Defining cross validation model accuracy function
 from sklearn import model_selection
 from sklearn. linear_model import LogisticRegression
@@ -829,7 +792,6 @@ def models_accuracy_scores(model,independent,dependent):
 #Defining roc_curve plotting function
 from sklearn. linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, confusion_matrix, roc_curve, roc_auc_score
-
 def roc_curve_plot(model,X_var,y_var):
     model = model
     #split data into train-test data
@@ -860,7 +822,6 @@ models_accuracy_scores(LogisticRegression(),X,y)
 roc_before_scaling = roc_curve_plot(LogisticRegression(),X,y)
 roc_before_scaling
 #Getting accuracy scores of different quantile ranges
-
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.pipeline import Pipeline
 # determining independent variables
@@ -883,16 +844,13 @@ for ranges in ((1.0, 99.0), (2.0, 98.0), (5.0, 95.0), (10.0, 90.0), (15.0, 85.0)
     scores = cross_val_score(pipeline, columns_to_scale, win, scoring='accuracy', cv=cv, n_jobs=-1, error_score='raise')
     # rounding scores numbers to 4 digit
     scores = round(np.mean(scores), 4)
-
     print('For quantile range:', ranges, 'average score is:', scores)
-    
 #Distributions of numerical columns before robust scaling
 from matplotlib import pyplot
 columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross']
 pyplot.hist(merged_data_encoded[columns_to_scale], bins=25)
 pyplot.title('Distribution before scaling')
 pyplot.show()
-   
 #Apply Robust Scaler
 from matplotlib import pyplot
 columns_to_scale  = ['Runtime', 'IMDB_Rating','Meta_score', 'Gross']
@@ -903,23 +861,19 @@ merged_data_encoded[columns_to_scale] = scaler.fit_transform(merged_data_encoded
 merged_data_encoded[columns_to_scale].head()
 # histogram of the transformed data
 pyplot.hist(merged_data_encoded[columns_to_scale], bins=25)
-
 pyplot.title("Distribution after scaling")
 pyplot.show()
 #determining independent and dependent columns for model apply
 X = merged_data_encoded.drop(columns = ['win'],axis = 1)
 y = merged_data_encoded['win']
 X
-
 #Accuracy score and roc curve after scaling
 models_accuracy_scores(LogisticRegression(),X,y)
 roc_after_scaling = roc_curve_plot(LogisticRegression(),X,y)
 roc_after_scaling
-
 #Feature selection by using SelectFromModel L2-based Logistic Regression regularization
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
-
 #Hyperparameter (C-index) Tuning
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
@@ -937,12 +891,10 @@ for c in c_:
     scores = model_selection.cross_val_score(logreg, X, y, cv=10, scoring='accuracy')
     avg_score = round(np.mean(scores),4)
     print("for",c,"avg_score is",avg_score)
-    
 #Feature Selection Apply
 X = merged_data_encoded.drop(columns = ['win'],axis =1)
 y = merged_data_encoded['win']
 from sklearn.feature_selection import SelectFromModel
-
 #instantiate model
 logreg = LogisticRegression(C= 0.001, penalty = 'l2',solver = 'liblinear').fit(X, y)
 #instantiate select from model
@@ -980,7 +932,6 @@ roc_after_feature_selection
 X
 y
 # MODEL APPLY
-
 #Writing function for cross validation evaluation of the model performance before hyperparameter tuning
 def cross_val_eval(model, predictor, target):
 #getting cross validation scores for train and test data with the predictive model
@@ -1094,7 +1045,6 @@ print(classification_report(y_test, y_pred))
 print(logreg_cv_lfs.best_params_)
 #Newton-cg Solver
 warnings.simplefilter(action='ignore', category=UserWarning)
-
 logreg_newt = LogisticRegression(max_iter=10000)
 # Create training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
@@ -1103,19 +1053,14 @@ param_grid = dict()
 param_grid['solver'] = ['newton-cg']
 param_grid['penalty'] = ['none', 'l2']
 param_grid['C'] = np.logspace(-2, 2, 15)
-
 # define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
 cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
 # creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
-
 logreg_newt_cv = GridSearchCV(logreg_newt, param_grid, cv=cv, scoring='accuracy')
-
 # fit logr. with train data
 logreg_newt_cv.fit(X_train, y_train)
-
 # making predictions with test data
 y_pred = logreg_newt_cv.predict(X_test)
-
 # print accuracy
 accuracy = logreg_newt_cv.score(X_test, y_test)
 print("Accuracy of ", param_grid, "is :", accuracy)
@@ -1136,10 +1081,9 @@ print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
 #print classification report
 print(classification_report(y_test, y_pred))
 #Saga Solver
+#Running saga solver with all penalties and concordance index takes very long time.Therefore, firstly best performing penalty was determined then c-index.
 import warnings
-
 warnings.simplefilter(action='ignore', category=UserWarning)
-
 logreg_saga = LogisticRegression(max_iter=10000, l1_ratio=0.1)
 # Create training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
@@ -1147,7 +1091,6 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 param_grid = dict()
 param_grid['solver'] = ['saga']
 param_grid['penalty'] = ['l1', 'l2', 'elasticnet', 'none']
-
 # define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
 cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
 # creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
@@ -1165,9 +1108,7 @@ print(classification_report(y_test, y_pred))
 print(logreg_saga_cv.best_params_)
 #Determining c_index :
 import warnings
-
 warnings.simplefilter(action='ignore', category=UserWarning)
-
 logreg_saga = LogisticRegression(max_iter=10000)
 # Create training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
@@ -1176,21 +1117,14 @@ param_grid = dict()
 param_grid['solver'] = ['saga']
 param_grid['penalty'] = ['none']
 param_grid['C'] = np.logspace(-2, 2, 15)
-
 # define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
 cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
-
 # creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
-
 logreg_saga_cv = GridSearchCV(logreg_saga, param_grid, cv=cv, scoring='accuracy')
-
 # fit logr. with train data
 logreg_saga_cv.fit(X_train, y_train)
-
 # making predictions with test data
-
 y_pred = logreg_saga_cv.predict(X_test)
-
 # print accuracy
 accuracy = logreg_saga_cv.score(X_test, y_test)
 print("Accuracy of ", param_grid, "is :", accuracy)
@@ -1212,7 +1146,6 @@ print("Testing accuracy : {}" .format(accuracy_score(y_pred,y_test)))
 print(classification_report(y_test, y_pred))
 #Logistic Regression accuracy scores with best performing hyperparameters
 logreg = LogisticRegression(C = 3.73, penalty = 'l2',solver = 'liblinear',random_state = 0)
-
 # #split data into train-test data
 X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
 # Fit it to the training data
@@ -1261,4 +1194,5 @@ false_neg_films = y_test.iloc[FN_indexes]
 false_nega_titles = false_neg_films.index
 #False negative predicted films
 false_nega_titles
+#calling false negative films from merged data
 merged_data.loc[false_nega_titles]
