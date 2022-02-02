@@ -1107,32 +1107,39 @@ print(classification_report(y_test, y_pred))
 # print best parameters determined by gridsearch
 print(logreg_saga_cv.best_params_)
 #Determining c_index :
-import warnings
 warnings.simplefilter(action='ignore', category=UserWarning)
-logreg_saga = LogisticRegression(max_iter=10000)
+from sklearn.model_selection import RandomizedSearchCV
+
+logreg_saga = LogisticRegression(max_iter=100000)
 # Create training and test sets
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=0, stratify=y)
 # Create the hyperparameter grid
-param_grid = dict()
-param_grid['solver'] = ['saga']
-param_grid['penalty'] = ['none']
-param_grid['C'] = np.logspace(-2, 2, 15)
+param_distributions = dict()
+param_distributions['solver'] = ['saga']
+param_distributions['penalty'] = ['none']
+param_distributions['C'] = np.logspace(-2, 2, 15)
+
 # define k-fold cross validation evaluation with 9 folds (RepeatedStratifiedKFold - classification)
-cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=3, random_state=0)
+cv = RepeatedStratifiedKFold(n_splits=9, n_repeats=1, random_state=0)
 # creating Gridsearch for determining the best parameters of logistic regression with 10 fold cross validation
-logreg_saga_cv = GridSearchCV(logreg_saga, param_grid, cv=cv, scoring='accuracy')
+
+logreg_saga_cv = RandomizedSearchCV(logreg_saga, param_distributions, cv=cv, scoring='accuracy')
+
 # fit logr. with train data
 logreg_saga_cv.fit(X_train, y_train)
+
 # making predictions with test data
 y_pred = logreg_saga_cv.predict(X_test)
+
 # print accuracy
 accuracy = logreg_saga_cv.score(X_test, y_test)
-print("Accuracy of ", param_grid, "is :", accuracy)
+print("Accuracy of ", param_distributions, "is :", accuracy)
 # print classification report
 print(classification_report(y_test, y_pred))
 # print best parameters determined by gridsearch
 print(logreg_saga_cv.best_params_)
-logreg = LogisticRegression(C = 0.01,solver = 'saga',penalty = 'none')
+#model accuracy with saga solver and tunned hyperparameters
+logreg = LogisticRegression(C = 51.795,solver = 'saga',penalty = 'none')
 # #split data into train-test data
 X_train, X_test, y_train, y_test = train_test_split(X,y,test_size = 0.3,random_state =0,stratify = y)
 # Fit it to the training data
